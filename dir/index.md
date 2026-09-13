@@ -1,8 +1,7 @@
 ---
-theme: slate
 title: タイトル
 ---
 
 # subdir
 
-12
+13
