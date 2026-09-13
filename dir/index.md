@@ -1,6 +1,8 @@
 ---
+theme: jekyll-theme-cayman
+title: タイトル
 ---
 
 # subdir
 
-10
+11
