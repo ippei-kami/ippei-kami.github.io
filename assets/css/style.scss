@@ -1,0 +1,5 @@
+@import "{{ site.theme }}";
+
+.markdown-body > h1:first-of-type:has(a[href*="github.io"]) {
+  display: none !important;
+}
