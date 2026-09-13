@@ -1,4 +1,6 @@
-# ippei-kami.github.io
+# index 1
+
+[link](https://github.com/ippei-kami/)
 
 ## index 2
 
