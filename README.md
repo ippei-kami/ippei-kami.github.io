@@ -4,5 +4,5 @@
 * list
 ### index 3
 | table | table |
-| -- | -- |
+| --- | --- |
 | test | test |
