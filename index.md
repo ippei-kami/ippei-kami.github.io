@@ -1,6 +1,6 @@
 ---
 theme: slate
-title: タイトル
+title: ""
 ---
 
 # 1
