@@ -1,7 +1,3 @@
----
-theme: jekyll-theme-slate
----
-
 # subdir
 
-8
+9
