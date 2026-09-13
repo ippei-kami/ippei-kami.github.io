@@ -5,3 +5,8 @@
 .markdown-body > h1:first-of-type {
   display: none !important;
 }
+
+body {
+  background-color: black;
+  filter: hue-rotate(180deg) invert(90%);
+}
