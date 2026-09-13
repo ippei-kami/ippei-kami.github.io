@@ -1,0 +1,7 @@
+---
+---
+@import "{{ site.theme }}";
+
+.markdown-body > h1:first-of-type {
+  display: none !important;
+}
