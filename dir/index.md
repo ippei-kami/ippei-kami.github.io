@@ -1,10 +1,9 @@
 ---
 remote_theme: pages-themes/slate@v0.2.0
-title: タイトル
+plugins:
+- jekyll-remote-theme
 ---
-
-@import "{{ site.theme }}";
 
 # subdir
 
-6
+7
