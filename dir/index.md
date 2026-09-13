@@ -1,5 +1,5 @@
 ---
-theme: jekyll-theme-slate
+theme: slate
 title: タイトル
 ---
 
