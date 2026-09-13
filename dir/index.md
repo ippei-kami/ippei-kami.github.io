@@ -1,7 +1,8 @@
 ---
+theme: jekyll-theme-slate
 title: タイトル
 ---
 
 # subdir
 
-11
+12
