@@ -1,9 +1,7 @@
 ---
-remote_theme: pages-themes/slate@v0.2.0
-plugins:
-- jekyll-remote-theme
+theme: jekyll-theme-slate
 ---
 
 # subdir
 
-7
+8
