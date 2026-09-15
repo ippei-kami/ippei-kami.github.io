@@ -1,1 +1,1 @@
-https://ippei-kami.github.io/
+https://ippei-kami.github.io
