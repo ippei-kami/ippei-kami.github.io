@@ -1,0 +1,139 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script>
+<script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
+<title>Chord Gen</title>
+<!-- ===================================================================== --><style>
+
+body {
+  font-family: system-ui;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+button, input, select {
+  font-family: system-ui;
+}
+#main {
+  line-height: 3em;
+}
+#main button {
+  padding: 1em;
+  width: 9em;
+  appearance: none;
+}
+
+</style></head><body><!-- ===================================================================== -->
+
+<h1>Random Chord Generator</h1>
+
+<div id="main">
+  Root note: <select id="root"><option>JavaScript Error</option></select><br>
+  Number of note: <input type="number" id="note_min" min="1" max="12" value="3"> to <input type="number" id="note_max" name="note_max" min="1" max="12" value="5"><br>
+  Step of semitone: <input type="number" id="step_min" min="1" max="12" value="3"> to <input type="number" id="step_max" name="step_max" min="1" max="12" value="6"><br>
+  Pitch of low A: <input type="number" id="pitch" min="110" max="2200" value="220"><br>
+  Volume <input type="range" id="volume" name="volume" min="0" max="1" step="0.02" value="0.6"><br>
+  <button onPointerDown="rand(); play(0)" onPointerUp="stop()">Generate (Q)</button> <button onPointerDown="play(0)" onPointerUp="stop()">Play (A)</button> <span id="chord0"></span><br><br>
+
+  <div id="store"></div><br>
+</div>
+
+<!-- ===================================================================== --><script>
+
+const curve = 0.02 // s
+chord = [
+  [3, 7, 10, 14],
+  [2, 5, 8, 12],
+  [2, 5, 7, 11],
+  [0, 3, 7, 12],
+  [12], [14], [15], [17]
+]
+keys = ['a', 's', 'd', 'f', 'j', 'k', 'l', ';']
+key2 = ['q', 'w', 'e', 'r', 'u', 'i', 'o', 'p']
+for (i = 1; i < chord.length; i++) {
+  document.querySelector('#store').innerHTML += '<button onClick="store(' + i + ')">Store ' + i + ' (' + key2[i].toUpperCase() + ')</button> <button onPointerDown="play(' + i + ')" onPointerUp="stop()">Play ' + i + ' (' + keys[i].toUpperCase() + ')</button> <span id="chord' + i + '"></span><br>'
+}
+
+const root=['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#']
+document.querySelector("#root").innerHTML = '<option value="12">random</option>'
+root.forEach((v, i) => document.querySelector("#root").innerHTML += '<option value="' + i + '">' + v + '</option>')
+chord.forEach((v, i) => document.querySelector("#chord" + i).innerHTML += chord[i].map(v => root[v % 12]).join(', '))
+
+var audioCtx
+var gainNode
+var oscillator
+var playing = false
+
+function rand() {
+  // root
+  if (document.querySelector("#root").value == root.length) {
+    chord[0] = [Math.floor(Math.random() * 12 )]
+  }
+  else {
+    chord[0] = [Number(document.querySelector("#root").value)]
+  }
+  // chord
+  number = Math.floor(Math.random() * (Number(document.querySelector("#note_max").value) - Number(document.querySelector("#note_min").value) + 1) + Number(document.querySelector("#note_min").value))
+  for (i = 1; i < number; i++) {
+    chord[0].push(chord[0][i - 1] + Math.floor(Math.random() * (Number(document.querySelector("#step_max").value) - Number(document.querySelector("#step_min").value) + 1) + Number(document.querySelector("#step_min").value)))
+  }
+  document.querySelector('#chord' + 0).innerHTML = chord[0].map(v => root[v % 12]).join(', ')
+}
+
+function play(arg) {
+  stop()
+  playing = true
+  if (! audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    gainNode = audioCtx.createGain()
+    gainNode.connect(audioCtx.destination)
+  }
+  audioCtx.resume() // for Safari
+  gainNode.gain.cancelScheduledValues(audioCtx.currentTime)
+  gainNode.gain.setValueAtTime(0, audioCtx.currentTime)
+  gainNode.gain.setTargetAtTime(Number(document.querySelector("#volume").value) / chord[arg].length, audioCtx.currentTime, curve / 5)
+  oscillator = []
+  chord[arg].forEach((v, i) => {
+    tmp = audioCtx.createOscillator()
+    tmp.connect(gainNode)
+    tmp.type = "sine"
+    tmp.frequency.value = Number(document.querySelector("#pitch").value) * (2 ** (v / 12))
+    tmp.start(0)
+    oscillator.push(tmp)
+  })
+}
+
+function stop() {
+  playing = false
+  gainNode?.gain.cancelScheduledValues(audioCtx.currentTime)
+  gainNode?.gain.setTargetAtTime(0, audioCtx.currentTime, curve / 5)
+  oscillator?.forEach((v, i) => {
+    v.stop(audioCtx.currentTime + curve)
+  })
+}
+
+function store(arg) {
+  chord[arg] = chord[0]
+  document.querySelector('#chord' + arg).innerHTML = chord[arg].map(v => root[v % 12]).join(', ')
+}
+
+document.onkeydown = e => {
+  if (! playing) {
+    if (e.key == 'q') {
+      rand()
+      play(0)
+    }
+    else if (0 <= keys.indexOf(e.key) && keys.indexOf(e.key) < chord.length) {
+      play(keys.indexOf(e.key))
+    }
+    else if (0 <= key2.indexOf(e.key) && key2.indexOf(e.key) < chord.length) {
+      store(key2.indexOf(e.key))
+    }
+  }
+}
+document.onkeyup = e => stop()
+
+</script><!-- ===================================================================== --></body></html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="/fontawesome/css/fontawesome.min.css" rel="stylesheet">
+<link href="/fontawesome/css/brands.min.css" rel="stylesheet">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script>
+<script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
+<title>Dead pixel checker</title>
+<style>
+body {
+  font-family: system-ui;
+  background-color: #000;
+  color: #ccc;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+::selection {
+  background: rgba(0, 0, 0, 0)
+}
+a {
+  color: #ccc;
+}
+</style>
+</head>
+
+<body>
+  <h1>Dead pixel checker</h1>
+  <div>
+    Click anywhere to display red > green > blue > black > white > black<br><br><br>
+    <i class="fa-brands fa-creative-commons"></i> <i class="fa-brands fa-creative-commons-zero"></i> The source code of this page is in the public domain as "Creative Commons CC0 1.0 Universal".
+  </div>
+
+<script>
+var step = 0;
+document.body.onclick = () => {
+  if (step == 0) {
+    document.documentElement.requestFullscreen();
+    document.body.style.cursor = 'none';
+    document.body.style.backgroundColor = '#f00';
+    document.body.style.color = 'rgba(0, 0, 0, 0)';
+    document.querySelectorAll('a').forEach(tmp => tmp.style.color = 'rgba(0, 0, 0, 0)');
+    step++;
+  }
+  else if (step == 1) {
+    document.body.style.backgroundColor = '#0f0';
+    step++;
+  }
+  else if (step == 2) {
+    document.body.style.backgroundColor = '#00f';
+    step++;
+  }
+  else if (step == 3) {
+    document.body.style.backgroundColor = '#000';
+    step++;
+  }
+  else if (step == 4) {
+    document.body.style.backgroundColor = '#fff';
+    step++;
+  }
+  else if (step == 5) {
+    document.body.style.backgroundColor = '#000';
+    step++;
+  }
+  else if (step == 6) {
+    document.exitFullscreen();
+    document.body.style.cursor = 'default';
+    document.body.style.backgroundColor = '#000';
+    document.body.style.color = '#ccc';
+    document.querySelectorAll('a').forEach(tmp => tmp.style.color = '#ccc');
+    step = 0;
+  }
+}
+</script></body></html>

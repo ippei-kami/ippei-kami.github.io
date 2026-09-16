@@ -5,9 +5,11 @@
     <meta charset="UTF-8">
     <meta name="robots" content="noindex,nofollow,noarchive">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Google tag (gtag.js) --><script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script><script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script>
+    <script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
     <title>水準器</title>
-    
+
     <!-- PWA Settings -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
@@ -115,7 +117,8 @@
             padding: 1rem 0.5rem;
         }
 
-        header, .switch-group {
+        header,
+        .switch-group {
             display: flex;
             flex-direction: row;
             justify-content: center;
@@ -522,9 +525,17 @@
             transition: background 0.3s;
         }
 
-        #detail-x { background: var(--bg-x, transparent); }
-        #detail-y { background: var(--bg-y, transparent); }
-        #detail-comp { background: var(--bg-comp, transparent); }
+        #detail-x {
+            background: var(--bg-x, transparent);
+        }
+
+        #detail-y {
+            background: var(--bg-y, transparent);
+        }
+
+        #detail-comp {
+            background: var(--bg-comp, transparent);
+        }
 
         .detail-item.hidden {
             display: none;
@@ -973,7 +984,7 @@
                     angleValueSum += tilt;
 
                     const maxAngle = 90;
-                    
+
                     let cursorX = normalizeCursorPos(pXZ);
                     let cursorY = normalizeCursorPos(pYZ);
 
@@ -1002,7 +1013,7 @@
 
                     let tilt = calcCompositeTilt(pitch, roll);
                     angleValueSum += tilt;
-                    
+
                     let cursorPitch = normalizeCursorPos(pitch);
                     let cursorRoll = normalizeCursorPos(roll);
 
@@ -1062,13 +1073,13 @@
                 if (tiltRoll === undefined) {
                     document.documentElement.style.setProperty('--bg-x', getBgColor(tiltPitch));
                     document.documentElement.style.setProperty('--bg-comp', getBgColor(tiltPitch));
-                    
+
                     document.documentElement.style.setProperty('--pitch-color', isZeroOr180(tiltPitch) ? '#10b981' : '#f59e0b');
                     document.documentElement.style.setProperty('--roll-color', '#10b981');
                 } else {
                     document.documentElement.style.setProperty('--bg-x', getBgColor(tiltPitch));
                     document.documentElement.style.setProperty('--bg-y', getBgColor(tiltRoll));
-                    
+
                     let compAngle = calcCompositeTilt(tiltPitch, tiltRoll);
                     document.documentElement.style.setProperty('--bg-comp', getBgColor(compAngle));
 

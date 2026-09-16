@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script>
+    <script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
+
+    <title>三相交流アニメーション</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .visualization-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        canvas {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            background-color: #1e1e1e;
+            padding: 20px 30px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button.stop {
+            background-color: #dc3545;
+        }
+
+        button.stop:hover {
+            background-color: #a71d2a;
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type=range] {
+            width: 150px;
+            cursor: pointer;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: -10px;
+            margin-bottom: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .color-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>三相交流アニメーション</h1>
+
+    <!-- 凡例は下部に移動しました -->
+
+    <div class="visualization-container">
+        <!-- 波形表示用キャンバス -->
+        <canvas id="waveCanvas" width="600" height="350"></canvas>
+        <!-- ベクトル表示用キャンバス -->
+        <canvas id="vectorCanvas" width="350" height="350"></canvas>
+    </div>
+
+    <table id="vectorValues"
+        style="margin-bottom: 20px; background-color: #1e1e1e; padding: 15px 25px; border-radius: 8px; border: 1px solid #333; border-collapse: collapse; font-size: 16px;">
+        <thead>
+            <tr>
+                <th style="padding: 8px 20px; border-bottom: 1px solid #444; text-align: center;">相</th>
+                <th style="padding: 8px 20px; border-bottom: 1px solid #444; text-align: right;">大きさ</th>
+                <th style="padding: 8px 20px; border-bottom: 1px solid #444; text-align: right;">位相</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 8px 20px; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div class="color-box" style="background-color: #ff4c4c;"></div> U相
+                    </div>
+                </td>
+                <td style="padding: 8px 20px; text-align: right; font-variant-numeric: tabular-nums;" id="valU">0.00
+                </td>
+                <td style="padding: 8px 20px; text-align: right; font-variant-numeric: tabular-nums;" id="degU">0.0°
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 20px; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div class="color-box" style="background-color: #4caf50;"></div> V相
+                    </div>
+                </td>
+                <td style="padding: 8px 20px; text-align: right; font-variant-numeric: tabular-nums;" id="valV">0.00
+                </td>
+                <td style="padding: 8px 20px; text-align: right; font-variant-numeric: tabular-nums;" id="degV">0.0°
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 20px; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div class="color-box" style="background-color: #4da6ff;"></div> W相
+                    </div>
+                </td>
+                <td style="padding: 8px 20px; text-align: right; font-variant-numeric: tabular-nums;" id="valW">0.00
+                </td>
+                <td style="padding: 8px 20px; text-align: right; font-variant-numeric: tabular-nums;" id="degW">0.0°
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 20px; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div class="color-box" style="background-color: #ffeb3b;"></div> 合成
+                    </div>
+                </td>
+                <td style="padding: 8px 20px; text-align: right; font-variant-numeric: tabular-nums;" id="valSum">0.00
+                </td>
+                <td style="padding: 8px 20px; text-align: right; font-variant-numeric: tabular-nums;" id="degSum">0.0°
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="controls">
+        <button id="playPauseBtn">一時停止</button>
+        <button id="slowBtn">速度 -</button>
+        <button id="fastBtn">速度 +</button>
+        <div class="slider-group">
+            <label for="phaseSlider">位相:</label>
+            <input type="range" id="phaseSlider" min="0" max="360" value="90" step="1">
+        </div>
+    </div>
+
+    <script>
+        const waveCanvas = document.getElementById('waveCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+        const vectorCanvas = document.getElementById('vectorCanvas');
+        const vectorCtx = vectorCanvas.getContext('2d');
+
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const slowBtn = document.getElementById('slowBtn');
+        const fastBtn = document.getElementById('fastBtn');
+        const phaseSlider = document.getElementById('phaseSlider');
+
+        // 色の定義 (正弦波とベクトルで同一)
+        const colorU = '#ff4c4c'; // 赤
+        const colorV = '#4caf50'; // 緑
+        const colorW = '#4da6ff'; // 青
+        const colorSum = '#ffeb3b'; // 黄色 (合成ベクトル)
+        const gridColor = '#444';
+
+        // 状態変数
+        let phase = Math.PI / 2; // ラジアン (0度が上方向から始まるように)
+        let isPlaying = true;
+        let speed = 0.02; // 毎フレームの位相進行量
+        let animationId;
+
+        // 定数（両キャンバスで共有するスケール）
+        const R = 110; // はみ出さないように正弦波の振幅とベクトルのスケールを少し縮小
+
+        // 波形の描画
+        function drawWaves() {
+            waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+
+            const width = waveCanvas.width;
+            const height = waveCanvas.height;
+            const centerY = height / 2;
+            const cursorX = width / 2; // カーソルを中央にする
+
+            // グリッド線の描画
+            waveCtx.strokeStyle = gridColor;
+            waveCtx.lineWidth = 1;
+            waveCtx.beginPath();
+            waveCtx.moveTo(0, centerY);
+            waveCtx.lineTo(width, centerY);
+            waveCtx.stroke();
+
+            // 3つの波形を描画
+            const drawSineWave = (color, phaseOffset) => {
+                waveCtx.strokeStyle = color;
+                waveCtx.lineWidth = 3;
+                waveCtx.beginPath();
+                for (let x = 0; x <= width; x++) {
+                    // time=xの位相。カーソル(cursorX)のときに angle = phase となるようにする
+                    // 波は左に進む（時間が右へ進む）表現
+                    // キャンバス幅600pxで2周期(4*Math.PI)表示するため、1周期=300px
+                    const angle = phase + (x - cursorX) * (Math.PI * 2 / 300);
+                    const y = centerY - Math.sin(angle - phaseOffset) * R;
+
+                    if (x === 0) waveCtx.moveTo(x, y);
+                    else waveCtx.lineTo(x, y);
+                }
+                waveCtx.stroke();
+            };
+
+            drawSineWave(colorU, 0);
+            drawSineWave(colorV, 2 * Math.PI / 3);
+            drawSineWave(colorW, 4 * Math.PI / 3);
+
+            // U相の高さの破線
+            const uY = centerY - Math.sin(phase) * R;
+            waveCtx.strokeStyle = 'rgba(255, 76, 76, 0.8)';
+            waveCtx.lineWidth = 1.5;
+            waveCtx.setLineDash([5, 5]);
+            waveCtx.beginPath();
+            waveCtx.moveTo(0, uY);
+            waveCtx.lineTo(width, uY);
+            waveCtx.stroke();
+            waveCtx.setLineDash([]);
+
+            // 現在の位相を示すカーソル (中央)
+            waveCtx.strokeStyle = '#fff';
+            waveCtx.lineWidth = 2;
+            waveCtx.beginPath();
+            waveCtx.moveTo(cursorX, 0);
+            waveCtx.lineTo(cursorX, height);
+            waveCtx.stroke();
+
+            // 現在値の点を描画
+            const drawPoint = (color, phaseOffset) => {
+                const y = centerY - Math.sin(phase - phaseOffset) * R;
+                waveCtx.fillStyle = color;
+                waveCtx.beginPath();
+                waveCtx.arc(cursorX, y, 6, 0, Math.PI * 2);
+                waveCtx.fill();
+            };
+            drawPoint(colorU, 0);
+            drawPoint(colorV, 2 * Math.PI / 3);
+            drawPoint(colorW, 4 * Math.PI / 3);
+        }
+
+        // ベクトルの描画
+        function drawVectors() {
+            vectorCtx.clearRect(0, 0, vectorCanvas.width, vectorCanvas.height);
+
+            const centerX = vectorCanvas.width / 2;
+            const centerY = vectorCanvas.height / 2;
+
+            // 半径1の破線（円）
+            vectorCtx.strokeStyle = '#888';
+            vectorCtx.lineWidth = 1.5;
+            vectorCtx.setLineDash([5, 5]);
+            vectorCtx.beginPath();
+            vectorCtx.arc(centerX, centerY, R, 0, Math.PI * 2);
+            vectorCtx.stroke();
+            vectorCtx.setLineDash([]);
+
+            // 各相の軸（120度ごとの点線）
+            const drawAxis = (dir, color) => {
+                vectorCtx.strokeStyle = color;
+                vectorCtx.lineWidth = 1;
+                vectorCtx.setLineDash([4, 4]);
+                vectorCtx.beginPath();
+                vectorCtx.moveTo(centerX, centerY);
+                vectorCtx.lineTo(centerX + R * 1.5 * Math.cos(dir), centerY + R * 1.5 * Math.sin(dir));
+                vectorCtx.stroke();
+                vectorCtx.setLineDash([]);
+            };
+            drawAxis(-Math.PI / 2, '#888'); // U相軸
+            drawAxis(-Math.PI / 2 + 2 * Math.PI / 3, '#888'); // V相軸
+            drawAxis(-Math.PI / 2 + 4 * Math.PI / 3, '#888'); // W相軸
+
+            // 十字線は削除しました
+
+            // U相の高さの破線 (波形と合わせる)
+            const uY_val = centerY - Math.sin(phase) * R;
+            vectorCtx.strokeStyle = 'rgba(255, 76, 76, 0.8)';
+            vectorCtx.setLineDash([5, 5]);
+            vectorCtx.lineWidth = 1.5;
+            vectorCtx.beginPath();
+            vectorCtx.moveTo(0, uY_val);
+            vectorCtx.lineTo(vectorCanvas.width, uY_val);
+            vectorCtx.stroke();
+            vectorCtx.setLineDash([]);
+
+            // 矢印を描画するヘルパー関数
+            const drawArrow = (fromX, fromY, toX, toY, color, lineWidth) => {
+                const headlen = 10;
+                const angle = Math.atan2(toY - fromY, toX - fromX);
+                vectorCtx.strokeStyle = color;
+                vectorCtx.fillStyle = color;
+                vectorCtx.lineWidth = lineWidth;
+                vectorCtx.beginPath();
+                vectorCtx.moveTo(fromX, fromY);
+                vectorCtx.lineTo(toX, toY);
+                vectorCtx.stroke();
+
+                vectorCtx.beginPath();
+                vectorCtx.moveTo(toX, toY);
+                vectorCtx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+                vectorCtx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+                vectorCtx.lineTo(toX, toY);
+                vectorCtx.fill();
+            };
+
+            // 空間ベクトル（回転磁界）の表現
+            // U相の方向: -90度 (上、垂直方向)
+            // V相の方向: 30度 (右下)
+            // W相の方向: 150度 (左下)
+
+            const uVal = Math.sin(phase);
+            const vVal = Math.sin(phase - 2 * Math.PI / 3);
+            const wVal = Math.sin(phase - 4 * Math.PI / 3);
+
+            const uDir = -Math.PI / 2;
+            const vDir = uDir + 2 * Math.PI / 3;
+            const wDir = uDir + 4 * Math.PI / 3;
+
+            const uX = uVal * Math.cos(uDir) * R;
+            const uY = uVal * Math.sin(uDir) * R;
+
+            const vX = vVal * Math.cos(vDir) * R;
+            const vY = vVal * Math.sin(vDir) * R;
+
+            const wX = wVal * Math.cos(wDir) * R;
+            const wY = wVal * Math.sin(wDir) * R;
+
+            // 合成ベクトル (U + V + W)
+            const sumX = uX + vX + wX;
+            const sumY = uY + vY + wY;
+
+            // 合成ベクトルを他のベクトルより背面に描画する
+            drawArrow(centerX, centerY, centerX + sumX, centerY + sumY, colorSum, 4);
+
+            // 各相のベクトルを描画
+            drawArrow(centerX, centerY, centerX + uX, centerY + uY, colorU, 3);
+            drawArrow(centerX, centerY, centerX + vX, centerY + vY, colorV, 3);
+            drawArrow(centerX, centerY, centerX + wX, centerY + wY, colorW, 3);
+
+            // 合成ベクトルの軌跡を描画 (半径1.5の円)
+            vectorCtx.strokeStyle = 'rgba(255, 235, 59, 0.4)';
+            vectorCtx.lineWidth = 1.5;
+            vectorCtx.setLineDash([4, 4]);
+            vectorCtx.beginPath();
+            vectorCtx.arc(centerX, centerY, R * 1.5, 0, Math.PI * 2);
+            vectorCtx.stroke();
+            vectorCtx.setLineDash([]);
+
+            // 各ベクトルの大きさと位相を更新
+            // U, V, W は位相固定、符号付きの大きさ
+            document.getElementById('valU').textContent = uVal.toFixed(2);
+            document.getElementById('degU').textContent = "0.0°";
+
+            document.getElementById('valV').textContent = vVal.toFixed(2);
+            document.getElementById('degV').textContent = "120.0°";
+
+            document.getElementById('valW').textContent = wVal.toFixed(2);
+            document.getElementById('degW').textContent = "240.0°";
+
+            // 合成ベクトルは位相が回転するため計算
+            const sumMag = Math.sqrt(sumX * sumX + sumY * sumY) / R;
+            let sumMathDeg = Math.atan2(-sumY, sumX) * 180 / Math.PI;
+            let sumDeg = (90 - sumMathDeg + 360) % 360;
+
+            document.getElementById('valSum').textContent = sumMag.toFixed(2);
+            document.getElementById('degSum').textContent = sumDeg.toFixed(1) + '°';
+        }
+
+        function loop() {
+            if (isPlaying) {
+                phase += speed;
+                if (phase >= Math.PI * 2) {
+                    phase -= Math.PI * 2;
+                }
+                if (phase < 0) {
+                    phase += Math.PI * 2;
+                }
+                // スライダーを更新 (isPlaying中はプログラム側から更新)
+                phaseSlider.value = (phase * 180 / Math.PI) % 360;
+            }
+
+            drawWaves();
+            drawVectors();
+
+            animationId = requestAnimationFrame(loop);
+        }
+
+        // イベントリスナー
+        playPauseBtn.addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                playPauseBtn.textContent = '一時停止';
+                playPauseBtn.classList.remove('stop');
+            } else {
+                playPauseBtn.textContent = '再生';
+                playPauseBtn.classList.add('stop');
+            }
+        });
+
+        fastBtn.addEventListener('click', () => {
+            speed *= 1.5;
+        });
+
+        slowBtn.addEventListener('click', () => {
+            speed /= 1.5;
+        });
+
+        phaseSlider.addEventListener('input', (e) => {
+            phase = parseFloat(e.target.value) * Math.PI / 180;
+            if (isPlaying) {
+                // スライダー操作時に一時停止状態にするかはお好みだが、
+                // ここでは自然に操作できるようそのまま反映
+            } else {
+                drawWaves();
+                drawVectors();
+            }
+        });
+
+        // 初期描画開始
+        loop();
+    </script>
+
+</body>
+
+</html>
