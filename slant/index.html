@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-64XN99LL0P"></script>
+    <script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-64XN99LL0P');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>水準器</title>
+    
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #64748b;
+            --accent-glow: rgba(100, 116, 139, 0.4);
+            --border-radius: 24px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            height: 100dvh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .overlay-content {
+            text-align: center;
+            padding: 2rem;
+            background: var(--surface-color);
+            border-radius: var(--border-radius);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            max-width: 90%;
+        }
+
+        .overlay-content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--accent-color), #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .overlay-content p {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.95);
+        }
+
+        .app-container {
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem 0.5rem;
+        }
+
+        header, .switch-group {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
+            margin-bottom: 0.5rem;
+            width: 100%;
+            max-width: 360px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .mode-switch {
+            position: relative;
+            display: flex;
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            background: var(--surface-color);
+            border-radius: 50px;
+            padding: 4px;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .mode-switch-3 {
+            flex: 1.25;
+        }
+
+        .mode-switch input {
+            display: none;
+        }
+
+        .mode-switch label {
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            text-align: center;
+            padding: 0.6rem 0;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .mode-switch input:checked+label {
+            color: #fff;
+        }
+
+        .mode-switch-bg {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            height: calc(100% - 8px);
+            background: var(--accent-color);
+            border-radius: 50px;
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            box-shadow: 0 2px 10px var(--accent-glow);
+        }
+
+        #mode-vertical:checked~.mode-switch-bg {
+            transform: translateX(100%);
+        }
+
+        #mode-relative:checked~#relativity-bg {
+            transform: translateX(100%);
+        }
+
+        .mode-switch-3 .mode-switch-bg {
+            width: calc(33.333% - 2.66px);
+        }
+
+        #avg-weak:checked~#avg-bg {
+            transform: translateX(100%);
+        }
+
+        #avg-strong:checked~#avg-bg {
+            transform: translateX(200%);
+        }
+
+        #gravity-invert:checked~#gravity-bg {
+            transform: translateX(100%);
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0.5rem;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        .angle-display {
+            display: none;
+            font-size: 5rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+
+        .degree-symbol {
+            font-size: 2.5rem;
+            vertical-align: super;
+            color: var(--accent-color);
+        }
+
+        .indicator-container {
+            position: relative;
+            width: 100%;
+            max-width: 320px;
+            aspect-ratio: 1 / 1;
+            height: auto;
+            margin: 1rem auto 1.5rem auto;
+        }
+
+        .indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            transform: scale(0.9);
+        }
+
+        .indicator.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
+
+        /* Flat Mode - Bubble */
+        .bubble-container {
+            width: 100%;
+            height: 100%;
+            background: var(--surface-color);
+            border-radius: 50%;
+            position: relative;
+            box-shadow:
+                0 0 0 2px rgba(255, 255, 255, 0.05),
+                0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .crosshair-x,
+        .crosshair-y {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .crosshair-x {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+            left: 0;
+        }
+
+        .crosshair-y {
+            width: 1px;
+            height: 100%;
+            top: 0;
+            left: 50%;
+        }
+
+        .circle-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .circle-marker.degree-45 {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+        }
+
+        .circle-marker.degree-90 {
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .circle-label {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.4);
+            pointer-events: none;
+            background: var(--surface-color);
+            padding: 0 2px;
+        }
+
+        .flat-cursor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .flat-cursor-x {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--pitch-color, var(--accent-color));
+            transform: translateY(-50%);
+        }
+
+        .flat-cursor-y {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 4px;
+            height: 100%;
+            background: var(--roll-color, var(--accent-color));
+            transform: translateX(-50%);
+        }
+
+        /* Vertical Mode - Arc */
+        .arc-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            background: var(--surface-color);
+            box-shadow:
+                0 0 0 2px rgba(255, 255, 255, 0.05);
+        }
+
+        .roll-markers,
+        .pitch-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .roll-marker {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.3);
+            transform-origin: center 160px;
+            /* center of 320px container */
+        }
+
+        .roll-marker.highlight {
+            height: 18px;
+            background: rgba(255, 255, 255, 0.3);
+            width: 3px;
+        }
+
+        .roll-marker.dashed {
+            height: 27px;
+            /* 18px * 1.5 */
+            background: transparent;
+            border-left: 2px dashed rgba(255, 255, 255, 0.3);
+            width: 0;
+        }
+
+        .roll-marker span {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .pitch-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .pitch-marker.highlight {
+            width: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            height: 2px;
+        }
+
+        .pitch-marker.dashed {
+            background: transparent;
+            border-top: 2px dashed rgba(255, 255, 255, 0.3);
+            height: 0;
+        }
+
+        .pitch-marker span {
+            position: absolute;
+            right: -25px;
+            top: -7px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .gravity-markers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-origin: center center;
+        }
+
+        .gravity-vertical {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.4) 15%, transparent 15%, transparent 85%, rgba(255, 255, 255, 0.4) 85%, rgba(255, 255, 255, 0.4) 100%);
+            transform: translateX(-50%);
+        }
+
+        .gravity-horizontal {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, var(--roll-color, var(--accent-color)) 0%, var(--roll-color, var(--accent-color)) 15%, transparent 15%, transparent 85%, var(--roll-color, var(--accent-color)) 85%, var(--roll-color, var(--accent-color)) 100%);
+            transform: translateY(-50%);
+        }
+
+        .arc-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20%;
+            height: 4px;
+            background: var(--pitch-color, var(--accent-color));
+            border-radius: 2px;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .btn-zero-set {
+            background: var(--surface-color);
+            border: 2px solid var(--accent-color);
+            color: #fff;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .btn-zero-set:disabled {
+            border-color: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.3);
+            cursor: not-allowed;
+            background: transparent;
+        }
+
+        .btn-zero-set:not(:disabled):active {
+            transform: scale(0.95);
+        }
+
+        .details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            background: var(--surface-color);
+            padding: 1rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            border-radius: 12px;
+            padding: 0.5rem 1rem;
+            transition: background 0.3s;
+        }
+
+        #detail-x { background: var(--bg-x, transparent); }
+        #detail-y { background: var(--bg-y, transparent); }
+        #detail-comp { background: var(--bg-comp, transparent); }
+
+        .detail-item.hidden {
+            display: none;
+        }
+
+        .detail-item .label {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .detail-item span:not(.label):not(.unit) {
+            font-weight: 800;
+            font-size: 2.5rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .unit {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin-left: 4px;
+            font-weight: 600;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="permission-overlay" class="overlay active">
+        <div class="overlay-content">
+            <h1>水準器</h1>
+            <p>デバイスの傾きを取得するための権限が必要です。</p>
+            <button id="btn-start" class="btn-primary">開始する</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <header>
+            <div class="mode-switch">
+                <input type="radio" id="mode-flat" name="mode" value="flat" checked>
+                <label for="mode-flat">平置き</label>
+
+                <input type="radio" id="mode-vertical" name="mode" value="vertical">
+                <label for="mode-vertical">縦置き</label>
+                <div class="mode-switch-bg"></div>
+            </div>
+
+            <div class="mode-switch">
+                <input type="radio" id="mode-absolute" name="relativity" value="absolute" checked>
+                <label for="mode-absolute">絶対</label>
+
+                <input type="radio" id="mode-relative" name="relativity" value="relative">
+                <label for="mode-relative">相対</label>
+                <div class="mode-switch-bg" id="relativity-bg"></div>
+            </div>
+        </header>
+
+        <main>
+            <div class="angle-display">
+                <span id="angle-value">0.0</span><span class="degree-symbol">&deg;</span>
+            </div>
+
+            <div class="switch-group">
+                <div class="mode-switch mode-switch-3">
+                    <input type="radio" id="avg-none" name="average" value="0">
+                    <label for="avg-none">数値生</label>
+
+                    <input type="radio" id="avg-weak" name="average" value="250" checked>
+                    <label for="avg-weak">平均短</label>
+
+                    <input type="radio" id="avg-strong" name="average" value="500">
+                    <label for="avg-strong">平均長</label>
+
+                    <div class="mode-switch-bg" id="avg-bg"></div>
+                </div>
+
+                <div class="mode-switch">
+                    <input type="radio" id="gravity-normal" name="gravity" value="normal" checked>
+                    <label for="gravity-normal">重力</label>
+
+                    <input type="radio" id="gravity-invert" name="gravity" value="invert">
+                    <label for="gravity-invert">反転</label>
+
+                    <div class="mode-switch-bg" id="gravity-bg"></div>
+                </div>
+            </div>
+
+            <div class="indicator-container">
+                <!-- Flat Mode Indicator (Bubble Level) -->
+                <div id="indicator-flat" class="indicator active">
+                    <div class="bubble-container" id="bubble-container">
+                        <div class="crosshair-x"></div>
+                        <div class="crosshair-y"></div>
+                        <!-- Concentric circles will be generated by JS -->
+                        <div id="flat-cursor" class="flat-cursor">
+                            <div class="flat-cursor-x"></div>
+                            <div class="flat-cursor-y"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vertical Mode Indicator -->
+                <div id="indicator-vertical" class="indicator">
+                    <div class="arc-container">
+                        <div class="arc-bg"></div>
+                        <!-- Markers that stay aligned with gravity -->
+                        <div id="gravity-markers" class="gravity-markers">
+                            <div class="gravity-horizontal"></div>
+                        </div>
+                        <div class="arc-center"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details">
+                <div class="detail-item" id="detail-x">
+                    <span class="label" id="label-x">縦</span>
+                    <div><span id="val-beta">0.0</span><span class="unit">°</span></div>
+                </div>
+                <div class="detail-item" id="detail-y">
+                    <span class="label" id="label-y">横</span>
+                    <div><span id="val-gamma">0.0</span><span class="unit">°</span></div>
+                </div>
+                <div class="detail-item" id="detail-comp">
+                    <span class="label" id="label-comp">合成</span>
+                    <div><span id="val-comp">0.0</span><span class="unit">°</span></div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        function initApp() {
+            const overlay = document.getElementById('permission-overlay');
+            const btnStart = document.getElementById('btn-start');
+
+            const angleValue = document.getElementById('angle-value');
+
+            const detailX = document.getElementById('detail-x');
+            const detailY = document.getElementById('detail-y');
+            const labelX = document.getElementById('label-x');
+            const labelY = document.getElementById('label-y');
+            const valBeta = document.getElementById('val-beta');
+            const valGamma = document.getElementById('val-gamma');
+            const valComp = document.getElementById('val-comp');
+
+            const modeFlatRadio = document.getElementById('mode-flat');
+            const modeVerticalRadio = document.getElementById('mode-vertical');
+            const modeAbsoluteRadio = document.getElementById('mode-absolute');
+            const modeRelativeRadio = document.getElementById('mode-relative');
+
+            const avgRadios = document.querySelectorAll('input[name="average"]');
+            let averageInterval = 250;
+
+            avgRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    averageInterval = parseInt(e.target.value);
+                    resetAccumulator();
+                });
+            });
+
+            const gravityRadios = document.querySelectorAll('input[name="gravity"]');
+            gravityRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    isInverted = (e.target.value === 'invert');
+                    resetAccumulator();
+                });
+            });
+
+            // Accumulators for averaging
+            let valBetaSinSum = 0;
+            let valBetaCosSum = 0;
+            let valGammaSinSum = 0;
+            let valGammaCosSum = 0;
+            let angleValueSum = 0;
+            let updateCount = 0;
+            let lastUpdateTime = 0;
+
+            function resetAccumulator() {
+                valBetaSinSum = 0;
+                valBetaCosSum = 0;
+                valGammaSinSum = 0;
+                valGammaCosSum = 0;
+                angleValueSum = 0;
+                updateCount = 0;
+                lastUpdateTime = Date.now();
+            }
+
+            const indicatorFlat = document.getElementById('indicator-flat');
+            const indicatorVertical = document.getElementById('indicator-vertical');
+
+            const bubbleContainer = document.getElementById('bubble-container');
+            const flatCursor = document.getElementById('flat-cursor');
+            const gravityMarkers = document.getElementById('gravity-markers');
+
+            let currentMode = 'flat'; // 'flat' or 'vertical'
+
+            let isRelative = false;
+            let isInverted = false;
+            let refPlaneXZ = 0;
+            let refPlaneYZ = 0;
+            let refPlaneZY = 0;
+            let refPlaneYX = 0;
+
+            let absPlaneXZ = 0;
+            let absPlaneYZ = 0;
+            let absPlaneZY = 0;
+            let absPlaneYX = 0;
+
+            let ax = 0;
+            let ay = 0;
+            let az = 0;
+            const alphaFilter = 0.5; // low pass filter constant
+
+            function calcCompositeTilt(a1, a2) {
+                if (Math.abs(Math.abs(a1) - 90) < 0.1 || Math.abs(Math.abs(a2) - 90) < 0.1) return 90;
+                let t1 = Math.tan(a1 * Math.PI / 180);
+                let t2 = Math.tan(a2 * Math.PI / 180);
+                let sign = (Math.abs(a1) > 90 || Math.abs(a2) > 90) ? -1 : 1;
+                return Math.acos(sign / Math.sqrt(1 + t1 * t1 + t2 * t2)) * (180 / Math.PI);
+            }
+
+            // iOS detection to handle inverted accelerometer signs
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+            // Setup concentric circles for flat mode
+            const marks = [10, 20, 30, 40, 45, 50, 60, 70, 80, 90];
+            marks.forEach(deg => {
+                const circle = document.createElement('div');
+                circle.className = `circle-marker degree-${deg}`;
+
+                const diameter = (deg / 90) * 100;
+                circle.style.width = `${diameter}%`;
+                circle.style.height = `${diameter}%`;
+
+                // Add label for 45 and 90
+                if (deg === 45 || deg === 90) {
+                    const label = document.createElement('div');
+                    label.className = 'circle-label';
+                    label.textContent = `${deg}`;
+                    label.style.top = '-8px';
+                    circle.appendChild(label);
+                }
+
+                bubbleContainer.appendChild(circle);
+            });
+
+            // Setup Vertical Mode Markers
+            const arcBg = document.querySelector('.arc-bg');
+
+            // Roll Markers
+            const rollMarkersContainer = document.createElement('div');
+            rollMarkersContainer.className = 'roll-markers';
+            const markerAngles = [-90, -80, -70, -60, -50, -45, -40, -30, -20, -10, 0, 10, 20, 30, 40, 45, 50, 60, 70, 80, 90];
+            markerAngles.forEach(deg => {
+                let isHighlight = (deg % 45 === 0);
+                let is45 = (Math.abs(deg) === 45);
+
+                // Top marker
+                const marker = document.createElement('div');
+                marker.className = `roll-marker ${isHighlight ? 'highlight' : ''} ${is45 ? 'dashed' : ''}`;
+                marker.style.transform = `translateX(-50%) rotate(${deg}deg)`;
+                if (deg === 0 || Math.abs(deg) === 45 || Math.abs(deg) === 90) {
+                    const span = document.createElement('span');
+                    span.textContent = 90 - Math.abs(deg);
+                    marker.appendChild(span);
+                }
+                rollMarkersContainer.appendChild(marker);
+
+                // Bottom marker
+                if (Math.abs(deg) !== 90) { // Skip duplicate 90/-90 (sides)
+                    const markerBottom = document.createElement('div');
+                    markerBottom.className = `roll-marker ${isHighlight ? 'highlight' : ''} ${is45 ? 'dashed' : ''}`;
+                    markerBottom.style.transform = `translateX(-50%) rotate(${deg + 180}deg)`;
+                    if (deg === 0 || Math.abs(deg) === 45) {
+                        const spanBottom = document.createElement('span');
+                        spanBottom.textContent = 90 - Math.abs(deg);
+                        spanBottom.style.transform = `translateX(-50%) rotate(180deg)`;
+                        markerBottom.appendChild(spanBottom);
+                    }
+                    rollMarkersContainer.appendChild(markerBottom);
+                }
+            });
+
+            // Pitch Markers
+            const pitchMarkersContainer = document.createElement('div');
+            pitchMarkersContainer.className = 'pitch-markers';
+            markerAngles.forEach(deg => {
+                let isHighlight = (deg % 45 === 0);
+                let is45 = (Math.abs(deg) === 45);
+                const marker = document.createElement('div');
+                marker.className = `pitch-marker ${isHighlight ? 'highlight' : ''} ${is45 ? 'dashed' : ''}`;
+                let y = (deg / 90) * 50; // 50% radius
+                marker.style.top = `calc(50% + ${y}%)`;
+                marker.style.transform = `translate(-50%, -50%)`;
+
+                if (deg === 0 || Math.abs(deg) === 45) {
+                    const span = document.createElement('span');
+                    span.textContent = Math.abs(deg);
+                    marker.appendChild(span);
+                }
+                pitchMarkersContainer.appendChild(marker);
+            });
+
+            arcBg.appendChild(rollMarkersContainer);
+            arcBg.appendChild(pitchMarkersContainer);
+
+
+            // Mode Switching
+            function updateMode() {
+                if (modeFlatRadio.checked) {
+                    currentMode = 'flat';
+                    indicatorFlat.classList.add('active');
+                    indicatorVertical.classList.remove('active');
+
+                    detailX.classList.remove('hidden');
+                    labelX.textContent = '縦';
+                    labelY.textContent = '横';
+                } else {
+                    currentMode = 'vertical';
+                    indicatorFlat.classList.remove('active');
+                    indicatorVertical.classList.add('active');
+
+                    detailX.classList.remove('hidden');
+                    labelX.textContent = 'ピッチ';
+                    labelY.textContent = 'ロール';
+                }
+            }
+
+            modeFlatRadio.addEventListener('change', updateMode);
+            modeVerticalRadio.addEventListener('change', updateMode);
+
+            function setZero() {
+                refPlaneXZ = absPlaneXZ;
+                refPlaneYZ = absPlaneYZ;
+                refPlaneZY = absPlaneZY;
+                refPlaneYX = absPlaneYX;
+                resetAccumulator();
+            }
+
+            modeAbsoluteRadio.addEventListener('change', () => {
+                isRelative = false;
+                resetAccumulator();
+            });
+
+            modeRelativeRadio.addEventListener('change', () => {
+                isRelative = true;
+                setZero();
+            });
+
+            // Allow zero-setting by clicking the already selected "相対" label/radio
+            modeRelativeRadio.addEventListener('click', () => {
+                if (isRelative) {
+                    setZero();
+                }
+            });
+
+            updateMode();
+
+            // Initialization / Permission
+            btnStart.addEventListener('click', async () => {
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                    try {
+                        const permissionState = await DeviceMotionEvent.requestPermission();
+                        if (permissionState === 'granted') {
+                            startListening();
+                        } else {
+                            alert('センサーへのアクセスが拒否されました。');
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        startListening();
+                    }
+                } else {
+                    startListening();
+                }
+            });
+
+            function startListening() {
+                overlay.classList.remove('active');
+                window.addEventListener('devicemotion', handleMotion);
+            }
+
+            function handleMotion(event) {
+                const maxBubbleDistance = bubbleContainer.clientWidth / 2;
+                if (!event.accelerationIncludingGravity) return;
+
+                let x = event.accelerationIncludingGravity.x;
+                let y = event.accelerationIncludingGravity.y;
+                let z = event.accelerationIncludingGravity.z;
+
+                if (x === null || y === null || z === null) return;
+
+                let invertFactor = 1;
+                if (isIOS) invertFactor *= -1;
+                if (isInverted) invertFactor *= -1;
+
+                x *= invertFactor;
+                y *= invertFactor;
+                z *= invertFactor;
+
+                ax = alphaFilter * ax + (1 - alphaFilter) * x;
+                ay = alphaFilter * ay + (1 - alphaFilter) * y;
+                az = alphaFilter * az + (1 - alphaFilter) * z;
+
+                // Horizontal tilt (横) = XZ plane. Inverting sign as requested.
+                absPlaneXZ = -Math.atan2(ax, az) * (180 / Math.PI);
+                // Vertical tilt (縦) = YZ plane
+                absPlaneYZ = Math.atan2(ay, az) * (180 / Math.PI);
+
+                // Pitch (ピッチ) = ZY plane. Inverting sign as requested.
+                absPlaneZY = -Math.atan2(az, ay) * (180 / Math.PI);
+                absPlaneYX = Math.atan2(ax, ay) * (180 / Math.PI);
+
+                let pXZ = absPlaneXZ;
+                let pYZ = absPlaneYZ;
+                let pZY = absPlaneZY;
+                let pYX = absPlaneYX;
+
+                function wrapAngle(angle) {
+                    return ((angle + 180) % 360 + 360) % 360 - 180;
+                }
+
+                if (isRelative) {
+                    pXZ = wrapAngle(pXZ - refPlaneXZ);
+                    pYZ = wrapAngle(pYZ - refPlaneYZ);
+                    pZY = wrapAngle(pZY - refPlaneZY);
+                    pYX = wrapAngle(pYX - refPlaneYX);
+                }
+
+                function normalizeCursorPos(val) {
+                    if (val > 90) return 180 - val;
+                    if (val < -90) return -180 - val; // -90未満の時の対称な折り返し
+                    return val;
+                }
+
+                if (currentMode === 'flat') {
+                    let tilt = calcCompositeTilt(pYZ, pXZ);
+
+                    valBetaSinSum += Math.sin(pYZ * Math.PI / 180);
+                    valBetaCosSum += Math.cos(pYZ * Math.PI / 180);
+                    valGammaSinSum += Math.sin(pXZ * Math.PI / 180);
+                    valGammaCosSum += Math.cos(pXZ * Math.PI / 180);
+                    angleValueSum += tilt;
+
+                    const maxAngle = 90;
+                    
+                    let cursorX = normalizeCursorPos(pXZ);
+                    let cursorY = normalizeCursorPos(pYZ);
+
+                    // Map XZ (left/right tilt) to moveX, and YZ (up/down tilt) to moveY
+                    let moveX = -(cursorX / maxAngle) * maxBubbleDistance;
+                    let moveY = -(cursorY / maxAngle) * maxBubbleDistance;
+
+                    let dist = Math.sqrt(moveX * moveX + moveY * moveY);
+                    if (dist > maxBubbleDistance) {
+                        moveX = (moveX / dist) * maxBubbleDistance;
+                        moveY = (moveY / dist) * maxBubbleDistance;
+                    }
+
+                    flatCursor.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+
+                    updateColors(pYZ, pXZ);
+
+                } else if (currentMode === 'vertical') {
+                    let pitch = pZY; // ピッチ = ZY plane
+                    let roll = -pYX; // ロール = YX plane (reversed as requested)
+
+                    valBetaSinSum += Math.sin(pitch * Math.PI / 180);
+                    valBetaCosSum += Math.cos(pitch * Math.PI / 180);
+                    valGammaSinSum += Math.sin(roll * Math.PI / 180);
+                    valGammaCosSum += Math.cos(roll * Math.PI / 180);
+
+                    let tilt = calcCompositeTilt(pitch, roll);
+                    angleValueSum += tilt;
+                    
+                    let cursorPitch = normalizeCursorPos(pitch);
+                    let cursorRoll = normalizeCursorPos(roll);
+
+                    // Move the center circle up and down based on pitch
+                    let arcCenter = document.querySelector('.arc-center');
+                    let moveY = (cursorPitch / 90) * maxBubbleDistance;
+
+                    // Constrain moveY
+                    moveY = Math.max(-maxBubbleDistance, Math.min(maxBubbleDistance, moveY));
+
+                    arcCenter.style.transform = `translate(-50%, calc(-50% + ${moveY}px))`;
+
+                    gravityMarkers.style.transform = `rotate(${-cursorRoll}deg)`;
+
+                    updateColors(pitch, roll);
+                }
+
+                updateCount++;
+                let now = Date.now();
+
+                if (averageInterval === 0) {
+                    valBeta.textContent = (currentMode === 'flat' ? pYZ : pZY).toFixed(1);
+                    valGamma.textContent = (currentMode === 'flat' ? pXZ : -pYX).toFixed(1);
+                    let compAngle = currentMode === 'flat' ? calcCompositeTilt(pYZ, pXZ) : calcCompositeTilt(pZY, -pYX);
+                    angleValue.textContent = compAngle.toFixed(1);
+                    if (valComp) valComp.textContent = compAngle.toFixed(1);
+                    resetAccumulator();
+                } else if (now - lastUpdateTime >= averageInterval) {
+                    if (updateCount > 0) {
+                        let avgBeta = Math.atan2(valBetaSinSum, valBetaCosSum) * (180 / Math.PI);
+                        let avgGamma = Math.atan2(valGammaSinSum, valGammaCosSum) * (180 / Math.PI);
+                        let avgAngle = angleValueSum / updateCount;
+
+                        valBeta.textContent = avgBeta.toFixed(1);
+                        valGamma.textContent = avgGamma.toFixed(1);
+                        angleValue.textContent = avgAngle.toFixed(1);
+                        if (valComp) valComp.textContent = avgAngle.toFixed(1);
+                    }
+                    resetAccumulator();
+                }
+            }
+
+            // Dynamic Colors based on tilt
+            function updateColors(tiltPitch, tiltRoll) {
+                function isZeroOr180(angle) {
+                    let a = Math.abs(angle);
+                    return a < 2 || Math.abs(a - 180) < 2;
+                }
+
+                function getBgColor(angle) {
+                    let a = Math.abs(angle);
+                    if (isZeroOr180(angle)) return 'rgba(16, 185, 129, 0.3)'; // 0度または180度付近 (緑)
+                    if (Math.abs(a - 90) < 2) return 'rgba(239, 68, 68, 0.3)'; // 90度付近 (赤)
+                    return 'transparent'; // 普段は背景なし
+                }
+
+                if (tiltRoll === undefined) {
+                    document.documentElement.style.setProperty('--bg-x', getBgColor(tiltPitch));
+                    document.documentElement.style.setProperty('--bg-comp', getBgColor(tiltPitch));
+                    
+                    document.documentElement.style.setProperty('--pitch-color', isZeroOr180(tiltPitch) ? '#10b981' : '#f59e0b');
+                    document.documentElement.style.setProperty('--roll-color', '#10b981');
+                } else {
+                    document.documentElement.style.setProperty('--bg-x', getBgColor(tiltPitch));
+                    document.documentElement.style.setProperty('--bg-y', getBgColor(tiltRoll));
+                    
+                    let compAngle = calcCompositeTilt(tiltPitch, tiltRoll);
+                    document.documentElement.style.setProperty('--bg-comp', getBgColor(compAngle));
+
+                    document.documentElement.style.setProperty('--pitch-color', isZeroOr180(tiltPitch) ? '#10b981' : '#f59e0b');
+                    document.documentElement.style.setProperty('--roll-color', isZeroOr180(tiltRoll) ? '#10b981' : '#f59e0b');
+                }
+            } // End of updateColors()
+        } // End of initApp()
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+
+</html>
