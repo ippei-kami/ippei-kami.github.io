@@ -11,6 +11,10 @@
   <script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
   <title>かみひら いっぺい</title>
   <style>
+    :root {
+      color-scheme: light dark;
+    }
+
     html {
       scroll-behavior: smooth;
       scroll-padding-top: 3.5rem;
@@ -20,6 +24,8 @@
       margin: 0 auto;
       max-width: 800px;
       padding: 0 1rem;
+      background-color: #ffffff;
+      color: #000000;
     }
 
     nav {
@@ -28,6 +34,26 @@
       background-color: #ffffff;
       border-bottom: 1px solid #999999;
       padding: 0.5rem 0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+      }
+
+      nav {
+        background-color: #121212;
+        border-bottom-color: #444444;
+      }
+
+      a {
+        color: #58a6ff;
+      }
+
+      a:visited {
+        color: #bc8cff;
+      }
     }
   </style>
 </head>
