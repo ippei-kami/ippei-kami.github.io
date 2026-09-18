@@ -62,6 +62,8 @@
       padding: 0 1rem;
       background-color: var(--bg);
       color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+      line-height: 1.6;
     }
 
     nav {
@@ -81,47 +83,28 @@
       color: var(--link-visited);
     }
 
+    a:hover {
+      text-decoration: underline;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid var(--nav-border);
+      margin: 1.5rem 0;
+    }
+
     footer {
       margin-bottom: 4rem;
     }
 
     .theme-toggle {
+      color: var(--link);
       cursor: pointer;
       user-select: none;
     }
 
-    .theme-label-dark {
-      display: inline;
-    }
-
-    .theme-label-light {
-      display: none;
-    }
-
-    :root:has(#dark-mode-toggle:checked) .theme-label-dark {
-      display: none;
-    }
-
-    :root:has(#dark-mode-toggle:checked) .theme-label-light {
-      display: inline;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .theme-label-dark {
-        display: none;
-      }
-
-      .theme-label-light {
-        display: inline;
-      }
-
-      :root:has(#dark-mode-toggle:checked) .theme-label-dark {
-        display: inline;
-      }
-
-      :root:has(#dark-mode-toggle:checked) .theme-label-light {
-        display: none;
-      }
+    .theme-toggle:hover {
+      opacity: 0.7;
     }
   </style>
 </head>
@@ -133,7 +116,9 @@
     <a href="#skills">技能</a> ｜
     <a href="#licences">資格</a> ｜
     <a href="#career">経歴</a> ｜
-    <a href="#links">リンク</a>
+    <a href="#links">リンク</a> ｜
+    <input type="checkbox" id="dark-mode-toggle" hidden>
+    <label for="dark-mode-toggle" class="theme-toggle">◐</label>
   </nav>
 
   <header>
@@ -194,10 +179,14 @@
 
     <section id="licences">
       <h2>🪪 保有資格など</h2>
-      <h3>情報</h3>
+      <h3>情報・通信</h3>
       <ul>
         <li>情報処理安全確保支援士（登録第032704号）</li>
         <li>エンベデッドシステムスペシャリスト</li>
+        <li>第一級陸上無線技術士</li>
+        <li>第一級海上無線通信士</li>
+        <li>航空無線通信士</li>
+        <li>第一級アマチュア無線技士</li>
       </ul>
       <h3>製造・建設</h3>
       <ul>
@@ -205,13 +194,6 @@
         <li>工事担任者 総合通信</li>
         <li>マニュアルソルダリング 上級オペレータ</li>
         <li>色彩検定 UCアドバイザー（色のユニバーサルデザイン）</li>
-      </ul>
-      <h3>無線</h3>
-      <ul>
-        <li>第一級陸上無線技術士</li>
-        <li>第一級海上無線通信士</li>
-        <li>航空無線通信士</li>
-        <li>第一級アマチュア無線技士</li>
       </ul>
       <h3>教育・福祉</h3>
       <ul>
@@ -293,12 +275,7 @@
       <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
       2026-09-16 更新 ｜
       Copyright © 2023 Ippei Kamihira ｜
-      このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています ｜
-      <input type="checkbox" id="dark-mode-toggle" hidden>
-      <label for="dark-mode-toggle" class="theme-toggle">
-        <span class="theme-label-dark">🌙</span>
-        <span class="theme-label-light">☀️</span>
-      </label>
+      このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています
     </small>
   </footer>
 </body>
