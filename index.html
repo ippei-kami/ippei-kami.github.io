@@ -25,40 +25,56 @@
     :root {
       color-scheme: light;
       --bg: #ffffff;
-      --text: #000000;
-      --border: #999999;
-      --link: #0000ee;
+      --text: #1f1f1f;
+      --border: #d2d2d2;
+      --link: #1a0dab;
+      --footer-bg: #f3f5f6;
+      --footer-text: #474747;
     }
 
     :root[data-theme] {
       color-scheme: dark;
-      --bg: #121212;
-      --text: #e0e0e0;
-      --border: #c0c0c0;
-      --link: #58a6ff;
+      --bg: #22242a;
+      --text: #e6e8f0;
+      --border: #444746;
+      --link: #99c3ff;
+      --footer-bg: #16171a;
+      --footer-text: #bfbfbf;
     }
 
     html {
       scroll-behavior: smooth;
-      scroll-padding-top: 3.5rem;
+      scroll-padding-top: 2rem;
     }
 
     body {
-      margin: 0 auto;
-      max-width: 800px;
-      padding: 0 1rem;
+      margin: 0;
       background-color: var(--bg);
       color: var(--text);
       font-family: system-ui, sans-serif;
-      line-height: 1.6;
     }
 
     nav {
+      background-color: var(--footer-bg);
+      color: var(--footer-text);
       position: sticky;
       top: 0;
-      background-color: var(--bg);
-      border-bottom: 1.5px solid var(--border);
-      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem max(1rem, calc((100% - 800px) / 2));
+      white-space: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    header,
+    main {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 1rem;
     }
 
     a {
@@ -72,14 +88,17 @@
       text-decoration: underline;
     }
 
-    hr {
-      border: 0;
+    section {
       border-top: 1px solid var(--border);
-      margin: 1.5rem 0;
     }
 
     footer {
-      margin-bottom: 4rem;
+      background-color: var(--footer-bg);
+      color: var(--footer-text);
+      border-top: 1px solid var(--border);
+      padding: 1.5rem max(1rem, calc((100% - 800px) / 2)) 2.5rem;
+      margin-top: 2.5rem;
+      font-size: 0.875rem;
     }
   </style>
 </head>
@@ -102,7 +121,6 @@
       ℹ️ <a href="https://forms.gle/Vmkfi8ktHaJD4Yet5" target="_blank" rel="noopener noreferrer">お問い合わせ</a><br>
       現在、既存のお取引先様の対応を優先しております。
     </p>
-    <hr>
   </header>
   <main>
 
@@ -125,7 +143,6 @@
         <li>公共機関での勤務歴あり</li>
       </ul>
     </section>
-    <hr>
 
     <section id="skills">
       <h2>🛠️ 技能</h2>
@@ -149,7 +166,6 @@
         <li>情報：プログラミング・セキュリティ</li>
       </ul>
     </section>
-    <hr>
 
     <section id="licences">
       <h2>🪪 保有資格など</h2>
@@ -184,7 +200,6 @@
         <li>普通自動二輪免許</li>
       </ul>
     </section>
-    <hr>
 
     <section id="career">
       <h2>🗃️ 経歴</h2>
@@ -216,7 +231,6 @@
       </ul>
       <p>　※ 学位取得日降順</p>
     </section>
-    <hr>
 
     <section id="links">
       <h2>🌐 リンク</h2>
@@ -244,13 +258,10 @@
 
   </main>
   <footer>
-    <hr>
-    <small>
-      <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
-      2026-09-16 更新 ｜
-      Copyright © 2023 Ippei Kamihira ｜
-      このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています
-    </small>
+    <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
+    2026-09-16 更新 ｜
+    Copyright © 2023 Ippei Kamihira ｜
+    このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています
   </footer>
 </body>
 </html>
