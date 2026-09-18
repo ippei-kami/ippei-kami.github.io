@@ -2,6 +2,7 @@
 <html lang="ja-JP">
 
 <head>
+  <title>かみひら いっぺい</title>
   <meta charset="UTF-8">
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,10 +10,45 @@
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script>
   <script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
-  <title>かみひら いっぺい</title>
   <style>
     :root {
-      color-scheme: light dark;
+      color-scheme: light;
+      --bg: #ffffff;
+      --text: #000000;
+      --nav-border: #999999;
+      --link: #0000ee;
+      --link-visited: #551a8b;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --bg: #121212;
+        --text: #e0e0e0;
+        --nav-border: #e0e0e0;
+        --link: #58a6ff;
+        --link-visited: #bc8cff;
+      }
+    }
+
+    :root:has(#dark-mode-toggle:checked) {
+      color-scheme: dark;
+      --bg: #121212;
+      --text: #e0e0e0;
+      --nav-border: #e0e0e0;
+      --link: #58a6ff;
+      --link-visited: #bc8cff;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:has(#dark-mode-toggle:checked) {
+        color-scheme: light;
+        --bg: #ffffff;
+        --text: #000000;
+        --nav-border: #999999;
+        --link: #0000ee;
+        --link-visited: #551a8b;
+      }
     }
 
     html {
@@ -24,35 +60,68 @@
       margin: 0 auto;
       max-width: 800px;
       padding: 0 1rem;
-      background-color: #ffffff;
-      color: #000000;
+      background-color: var(--bg);
+      color: var(--text);
     }
 
     nav {
       position: sticky;
       top: 0;
-      background-color: #ffffff;
-      border-bottom: 1.5px solid #999999;
+      background-color: var(--bg);
+      border-bottom: 1.5px solid var(--nav-border);
       padding: 0.5rem 0;
     }
 
+    a {
+      color: var(--link);
+    }
+
+    a:visited {
+      color: var(--link-visited);
+    }
+
+    footer {
+      margin-bottom: 4rem;
+    }
+
+    .theme-toggle {
+      display: inline-block;
+      margin-top: 0.5rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .theme-label-dark {
+      display: inline;
+    }
+
+    .theme-label-light {
+      display: none;
+    }
+
+    :root:has(#dark-mode-toggle:checked) .theme-label-dark {
+      display: none;
+    }
+
+    :root:has(#dark-mode-toggle:checked) .theme-label-light {
+      display: inline;
+    }
+
     @media (prefers-color-scheme: dark) {
-      body {
-        background-color: #121212;
-        color: #e0e0e0;
+      .theme-label-dark {
+        display: none;
       }
 
-      nav {
-        background-color: #121212;
-        border-bottom-color: #e0e0e0;
+      .theme-label-light {
+        display: inline;
       }
 
-      a {
-        color: #58a6ff;
+      :root:has(#dark-mode-toggle:checked) .theme-label-dark {
+        display: inline;
       }
 
-      a:visited {
-        color: #bc8cff;
+      :root:has(#dark-mode-toggle:checked) .theme-label-light {
+        display: none;
       }
     }
   </style>
@@ -60,7 +129,7 @@
 
 <body id="top">
   <nav>
-    <a href="#top">ホーム</a> ｜
+    <a href="#top">⌂</a> ｜
     <a href="#services">事業</a> ｜
     <a href="#skills">技能</a> ｜
     <a href="#licences">資格</a> ｜
@@ -77,8 +146,8 @@
     </p>
     <hr>
   </header>
-
   <main>
+
     <section id="services">
       <h2>🤝 事業内容</h2>
       <h3>つくる：IoT 技術</h3>
@@ -213,22 +282,25 @@
       <ul>
         <li><a href="/slant" target="_blank" rel="noopener noreferrer">水準器</a></li>
         <li><a href="/dot" target="_blank" rel="noopener noreferrer">ドット抜けチェッカー</a></li>
-        <li><a href="/3phase" target="_blank" rel="noopener noreferrer">三相交流アニメ</a></li>
+        <li><a href="/3phase" target="_blank" rel="noopener noreferrer">三相交流アニメーション</a></li>
         <li><a href="/chord" target="_blank" rel="noopener noreferrer">和音ジェネレータ</a></li>
       </ul>
     </section>
-  </main>
 
+  </main>
   <footer>
     <hr>
-    <p>
-      <small>
-        2026-09-16 更新 ｜
-        <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
-        Copyright © 2023 Ippei Kamihira ｜
-        このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています。
-      </small>
-    </p>
+    <small>
+      <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
+      2026-09-16 更新 ｜
+      Copyright © 2023 Ippei Kamihira ｜
+      このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています ｜
+      <input type="checkbox" id="dark-mode-toggle" hidden>
+      <label for="dark-mode-toggle" class="theme-toggle">
+        <span class="theme-label-dark">🌙</span>
+        <span class="theme-label-light">☀️</span>
+      </label>
+    </small>
   </footer>
 </body>
 </html>
