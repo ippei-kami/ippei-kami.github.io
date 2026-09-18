@@ -10,110 +10,9 @@
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script>
   <script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
-  <script>
-    if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.setAttribute('data-theme', '');
-    }
-    addEventListener('DOMContentLoaded', () => {
-      document.getElementById('theme-toggle').onclick = () => {
-        const isDark = document.documentElement.toggleAttribute('data-theme');
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      };
-    });
-  </script>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #ffffff;
-      --text: #1f1f1f;
-      --border: #d2d2d2;
-      --link: #1a0dab;
-      --footer-bg: #f3f5f6;
-      --footer-text: #474747;
-    }
-
-    :root[data-theme] {
-      color-scheme: dark;
-      --bg: #22242a;
-      --text: #e6e8f0;
-      --border: #444746;
-      --link: #99c3ff;
-      --footer-bg: #16171a;
-      --footer-text: #bfbfbf;
-    }
-
-    html {
-      scroll-behavior: smooth;
-      scroll-padding-top: 2rem;
-    }
-
-    body {
-      margin: 0;
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: system-ui, sans-serif;
-    }
-
-    nav {
-      background-color: var(--footer-bg);
-      color: var(--footer-text);
-      position: sticky;
-      top: 0;
-      border-bottom: 1px solid var(--border);
-      padding: 0.5rem max(1rem, calc((100% - 800px) / 2));
-      white-space: nowrap;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-
-    nav::-webkit-scrollbar {
-      display: none;
-    }
-
-    header,
-    main {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 0 1rem;
-    }
-
-    a {
-      color: var(--link);
-      text-decoration: none;
-      cursor: pointer;
-      user-select: none;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    section {
-      border-top: 1px solid var(--border);
-    }
-
-    footer {
-      background-color: var(--footer-bg);
-      color: var(--footer-text);
-      border-top: 1px solid var(--border);
-      padding: 1.5rem max(1rem, calc((100% - 800px) / 2)) 2.5rem;
-      margin-top: 2.5rem;
-      font-size: 0.875rem;
-    }
-  </style>
 </head>
 
 <body id="top">
-  <nav>
-    <a href="#top">▲</a> ｜
-    <a href="#services">事業</a> ｜
-    <a href="#skills">技能</a> ｜
-    <a href="#licences">資格</a> ｜
-    <a href="#career">経歴</a> ｜
-    <a href="#links">リンク</a> ｜
-    <a id="theme-toggle">◐</a>
-  </nav>
-
   <header>
     <h1>かみひら いっぺい</h1>
     <p>フリーランス IoT エンジニア</p>
@@ -121,6 +20,11 @@
       ℹ️ <a href="https://forms.gle/Vmkfi8ktHaJD4Yet5" target="_blank" rel="noopener noreferrer">お問い合わせ</a><br>
       現在、既存のお取引先様の対応を優先しております。
     </p>
+    <nav>
+      <hr>
+      目次 ｜ <a href="#services">事業</a> ・ <a href="#skills">技能</a> ・ <a href="#licences">資格</a> ・ <a href="#career">経歴</a> ・ <a href="#links">リンク</a>
+      <hr>
+    </nav>
   </header>
   <main>
 
@@ -143,6 +47,7 @@
         <li>公共機関での勤務歴あり</li>
       </ul>
     </section>
+    <hr>
 
     <section id="skills">
       <h2>🛠️ 技能</h2>
@@ -166,6 +71,7 @@
         <li>情報：プログラミング・セキュリティ</li>
       </ul>
     </section>
+    <hr>
 
     <section id="licences">
       <h2>🪪 保有資格など</h2>
@@ -200,6 +106,7 @@
         <li>普通自動二輪免許</li>
       </ul>
     </section>
+    <hr>
 
     <section id="career">
       <h2>🗃️ 経歴</h2>
@@ -212,7 +119,7 @@
         <li>技術指導　（約 3年）</li>
         <li>その他の製作　（多数）</li>
       </ul>
-      <p>　※ 各年数は兼務期間を含む</p>
+      <p><small>　　※ 各年数は兼務期間を含む</small></p>
       <h3>所属組織</h3>
       <ul>
         <li>国家機関　（非常勤・任期中）</li>
@@ -222,15 +129,16 @@
         <li>老舗機械メーカー　（元正社員）</li>
         <li>中堅家電メーカー　（元正社員）</li>
       </ul>
-      <p>　※ 在籍日降順</p>
+      <p><small>　　※ 在籍日降順</small></p>
       <h3>学歴</h3>
       <ul>
         <li>修士（知識科学）・技術経営コース</li>
         <li>修士（工学）</li>
         <li>学士（工学）</li>
       </ul>
-      <p>　※ 学位取得日降順</p>
+      <p><small>　　※ 学位取得日降順</small></p>
     </section>
+    <hr>
 
     <section id="links">
       <h2>🌐 リンク</h2>
@@ -258,10 +166,14 @@
 
   </main>
   <footer>
-    <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
-    2026-09-16 更新 ｜
-    Copyright © 2023 Ippei Kamihira ｜
-    このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています
+    <hr>
+    <small>
+      <a href="#top">▲</a> ｜
+      <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
+      2026-09-16 更新 ｜
+      Copyright © 2023 Ippei Kamihira ｜
+      このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています
+    </small>
   </footer>
 </body>
 </html>
