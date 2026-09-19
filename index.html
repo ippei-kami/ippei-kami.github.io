@@ -11,29 +11,62 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script>
   <script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
   <style>
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 3.5rem;
+    }
+
     body {
       font-family: system-ui, sans-serif;
       max-width: 800px;
       margin: 0 auto;
-      padding: 1rem;
+      padding: 0 1rem;
+    }
+
+    a {
+      color: royalblue;
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: blueviolet;
+      text-decoration: underline;
+    }
+
+    header,
+    section,
+    footer {
+      padding: 0 1rem;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      background-color: whitesmoke;
+      padding: 0.5rem 1rem;
+      border-bottom: 2px solid lightgray;
+      z-index: 100;
+    }
+
+    .display_none {
+      display: none;
     }
   </style>
 </head>
 
-<body id="top">
+<body>
   <header>
     <h1>かみひら いっぺい</h1>
     <p>フリーランス IoT エンジニア</p>
     <p>
-      ℹ️ <a href="https://forms.gle/Vmkfi8ktHaJD4Yet5" target="_blank" rel="noopener noreferrer">お問い合わせ</a><br>
-      現在、既存のお取引先様の対応を優先しております。
+      <a href="https://forms.gle/Vmkfi8ktHaJD4Yet5" target="_blank" rel="noopener noreferrer">お問い合わせ</a>
+      <br>ⓘ 現在、既存のお取引先様の対応を優先しております。
     </p>
-    <nav>
-      <hr>
-      目次 ｜ <a href="#services">事業</a> ・ <a href="#skills">技能</a> ・ <a href="#licences">資格</a> ・ <a href="#career">経歴</a> ・ <a href="#links">リンク</a>
-      <hr>
-    </nav>
   </header>
+  <nav>
+    <a href="#">▲</a> ｜<a href="#services">事業</a> ｜ <a href="#skills">技能</a> ｜ <a href="#licences">資格</a> ｜ <a href="#career">経歴</a> ｜ <a href="#links">リンク</a>
+  </nav>
+  <hr class="display_none">
   <main>
 
     <section id="services">
@@ -46,7 +79,7 @@
       </ul>
       <h3>しめす：技術指導</h3>
       <ul>
-        <li>２つの修士号（工学・知識科学）と多数の国家資格に裏付けられた知識群</li>
+        <li>２つの修士号と多数の国家資格に裏付けられた知識群</li>
         <li>公的施設での職業訓練指導歴あり</li>
       </ul>
       <h3>まもる：サイバーセキュリティ</h3>
@@ -117,7 +150,7 @@
     <hr>
 
     <section id="career">
-      <h2>🗃️ 経歴</h2>
+      <h2>🗂️ 経歴</h2>
       <h3>主な職種</h3>
       <ul>
         <li>エンベデッドエンジニア　（約16年）</li>
@@ -173,15 +206,16 @@
     </section>
 
   </main>
+  <hr>
   <footer>
-    <hr>
-    <small>
-      <a href="#top">▲</a> ｜
-      <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
-      2026-09-16 更新 ｜
-      Copyright © 2023 Ippei Kamihira ｜
-      このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています
-    </small>
+    <p>
+      <small>
+        <a href="https://info.ippei.uk">https://info.ippei.uk</a> ｜
+        2026-09-16 更新 ｜
+        Copyright © 2023 Ippei Kamihira ｜
+        このページのテキストは <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a> ライセンスのもとに提供されています
+      </small>
+    </p>
   </footer>
 </body>
 </html>
