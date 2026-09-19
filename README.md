@@ -1,1 +1,1 @@
-https://info.ippei.uk
+https://ippei-kami.github.io
