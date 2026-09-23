@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>9マス鬼ごっこ - ぽっぷ＆きゅーと</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+:root {
+    --bg-color: #fff0f5;
+    --primary-color: #ffb6c1;
+    --secondary-color: #add8e6;
+    --text-color: #ff69b4;
+    --cell-bg: #ffffff;
+    --cell-border: #ffc0cb;
+    --cell-hover: #fffacd;
+    --cell-highlight: #e0ffff;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.container {
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    padding: 20px;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 0px white, -1px -1px 0px white, 1px -1px 0px white, -1px 1px 0px white, 1px 1px 0px white;
+    color: #ff1493;
+    animation: bounce 2s infinite;
+}
+
+.scoreboard {
+    background-color: white;
+    border: 3px dashed var(--primary-color);
+    border-radius: 20px;
+    padding: 10px 20px;
+    display: inline-block;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.score-value {
+    color: #ff4500;
+    font-weight: 900;
+}
+
+.message {
+    background-color: white;
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border: 3px solid var(--secondary-color);
+}
+
+.message p {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+}
+
+.btn {
+    background-color: #ff69b4;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    font-size: 1.2rem;
+    font-family: inherit;
+    font-weight: 700;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #c71585, 0 8px 10px rgba(0,0,0,0.2);
+    transition: all 0.1s;
+}
+
+.btn:hover {
+    transform: translateY(2px);
+    box-shadow: 0 3px 0 #c71585, 0 5px 8px rgba(0,0,0,0.2);
+}
+
+.btn:active {
+    transform: translateY(5px);
+    box-shadow: 0 0px 0 #c71585, 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Grid layout */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 10px;
+    width: 300px;
+    height: 300px;
+    margin: 0 auto;
+    position: relative;
+    background-color: #ffe4e1;
+    padding: 10px;
+    border-radius: 20px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+}
+
+.grid-container.disabled {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.cell {
+    background-color: var(--cell-bg);
+    border: 3px solid var(--cell-border);
+    border-radius: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 3rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 0 #ffb6c1;
+}
+
+.cell.valid-move {
+    background-color: var(--cell-highlight);
+    border-color: #87cefa;
+    box-shadow: 0 4px 0 #87cefa;
+    animation: pulse 1.5s infinite;
+}
+
+.cell.valid-move:hover {
+    background-color: #b0e0e6;
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #87cefa;
+}
+
+/* Characters floating over the grid */
+.character {
+    position: absolute;
+    font-size: 3.5rem;
+    pointer-events: none; /* Let clicks pass through to cells */
+    transition: top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 10;
+    width: calc(100% / 3 - 10px);
+    height: calc(100% / 3 - 10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    filter: drop-shadow(0 5px 5px rgba(0,0,0,0.2));
+}
+
+.character.hidden {
+    display: none;
+}
+
+#player {
+    z-index: 11;
+}
+
+#oni {
+    z-index: 12;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌟 9マス鬼ごっこ 🌟</h1>
+            <div class="scoreboard">
+                <span class="score-label">逃げたターン:</span>
+                <span id="turn-count" class="score-value">0</span>
+            </div>
+        </header>
+
+        <main>
+            <div id="message-area" class="message">
+                <p>あそびかた: 🐹（あなた）を操作して、🐱（おに）から逃げよう！</p>
+                <p>となりのマス（ななめOK）をタップして移動してね！</p>
+                <button id="start-btn" class="btn">ゲームスタート！</button>
+            </div>
+
+            <div class="grid-container disabled" id="grid">
+                <div class="cell" data-index="0"></div>
+                <div class="cell" data-index="1"></div>
+                <div class="cell" data-index="2"></div>
+                <div class="cell" data-index="3"></div>
+                <div class="cell" data-index="4"></div>
+                <div class="cell" data-index="5"></div>
+                <div class="cell" data-index="6"></div>
+                <div class="cell" data-index="7"></div>
+                <div class="cell" data-index="8"></div>
+            
+                <div class="character hidden" id="player">🐹</div>
+                <div class="character hidden" id="oni">🐱</div>
+            </div>
+        </main>
+    </div>
+    <script>
+document.addEventListener("DOMContentLoaded", () => {
+    const grid = document.getElementById("grid");
+    const cells = document.querySelectorAll(".cell");
+    const startBtn = document.getElementById("start-btn");
+    const messageArea = document.getElementById("message-area");
+    const turnCountDisplay = document.getElementById("turn-count");
+    
+    const playerEl = document.getElementById("player");
+    const oniEl = document.getElementById("oni");
+
+    let isGameRunning = false;
+    let turnCount = 0;
+    
+    // Positions (0 to 8)
+    let playerPos = -1;
+    let oniPos = -1;
+
+    // Grid coordinates for calculating distances and valid moves
+    const getCoords = (pos) => ({ x: pos % 3, y: Math.floor(pos / 3) });
+    
+    // Get adjacent positions (including diagonals, excluding self)
+    const getValidMoves = (pos) => {
+        const coords = getCoords(pos);
+        const moves = [];
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue; // Must move
+                const nx = coords.x + dx;
+                const ny = coords.y + dy;
+                if (nx >= 0 && nx < 3 && ny >= 0 && ny < 3) {
+                    moves.push(ny * 3 + nx);
+                }
+            }
+        }
+        return moves;
+    };
+
+    const updateCharacterPosition = (el, pos) => {
+        const cell = cells[pos];
+        // Calculate offset based on grid padding and gap
+        const rect = grid.getBoundingClientRect();
+        const cellRect = cell.getBoundingClientRect();
+        
+        // Position relative to the grid container
+        const top = cellRect.top - rect.top;
+        const left = cellRect.left - rect.left;
+        
+        el.style.top = `${top}px`;
+        el.style.left = `${left}px`;
+        el.classList.remove("hidden");
+    };
+
+    const highlightValidMoves = () => {
+        cells.forEach(c => c.classList.remove("valid-move"));
+        if (!isGameRunning) return;
+        
+        const validMoves = getValidMoves(playerPos);
+        validMoves.forEach(move => {
+            cells[move].classList.add("valid-move");
+        });
+    };
+
+    const startGame = () => {
+        isGameRunning = true;
+        turnCount = 0;
+        turnCountDisplay.textContent = turnCount;
+        grid.classList.remove("disabled");
+        
+        // Initial setup: Oni in middle (4), Player randomly in one of the corners
+        oniPos = 4;
+        const startOptions = [0, 2, 6, 8];
+        playerPos = startOptions[Math.floor(Math.random() * startOptions.length)];
+
+        // Ensure layout is ready before placing characters
+        setTimeout(() => {
+            updateCharacterPosition(playerEl, playerPos);
+            updateCharacterPosition(oniEl, oniPos);
+            highlightValidMoves();
+        }, 50);
+
+        messageArea.innerHTML = `<p>ゲームスタート！</p><p>🐹の移動先（青く光るマス）をタップしてね！</p>`;
+    };
+
+    const gameOver = (win) => {
+        isGameRunning = false;
+        grid.classList.add("disabled");
+        cells.forEach(c => c.classList.remove("valid-move"));
+        
+        if (win) {
+            // Usually tag games don't have a win condition unless there's a turn limit,
+            // but we can say "You survived well!"
+        } else {
+            messageArea.innerHTML = `
+                <p style="color:red; font-weight:bold;">つかまったにゃん！🐱💦</p>
+                <p>記録: ${turnCount} ターン</p>
+                <button id="restart-btn" class="btn">もういちど遊ぶ</button>
+            `;
+            document.getElementById("restart-btn").addEventListener("click", startGame);
+        }
+    };
+
+    const calculateOniMove = (oldPlayerPos, newPlayerPos) => {
+        const validMoves = getValidMoves(oniPos);
+        
+        // 1. Center Cutoff: Chance to jump to the center to prevent endless circling
+        if (oniPos !== 4 && validMoves.includes(4) && Math.random() < 0.25) {
+            return 4;
+        }
+
+        // 2. Prediction: Gradually increasing chance to read the player's actual next move
+        const cheatChance = Math.min(0.4, turnCount * 0.02); 
+        const targetPos = (Math.random() < cheatChance) ? newPlayerPos : oldPlayerPos;
+        const playerCoords = getCoords(targetPos);
+        
+        let bestMoves = [];
+        let minDistance = Infinity;
+
+        validMoves.forEach(move => {
+            const coords = getCoords(move);
+            // Chebyshev distance (max of dx, dy) works best for 8-way movement
+            const dist = Math.max(Math.abs(coords.x - playerCoords.x), Math.abs(coords.y - playerCoords.y));
+            
+            if (dist < minDistance) {
+                minDistance = dist;
+                bestMoves = [move];
+            } else if (dist === minDistance) {
+                bestMoves.push(move);
+            }
+        });
+
+        // 3. Tie-breaker: If multiple moves have the same distance, prefer the one closer to the center
+        bestMoves.sort((a, b) => {
+            const distCenterA = Math.max(Math.abs(getCoords(a).x - 1), Math.abs(getCoords(a).y - 1));
+            const distCenterB = Math.max(Math.abs(getCoords(b).x - 1), Math.abs(getCoords(b).y - 1));
+            return distCenterA - distCenterB;
+        });
+
+        const bestCenterDist = Math.max(Math.abs(getCoords(bestMoves[0]).x - 1), Math.abs(getCoords(bestMoves[0]).y - 1));
+        const finalMoves = bestMoves.filter(m => Math.max(Math.abs(getCoords(m).x - 1), Math.abs(getCoords(m).y - 1)) === bestCenterDist);
+
+        return finalMoves[Math.floor(Math.random() * finalMoves.length)];
+    };
+
+    const processTurn = (targetPos) => {
+        if (!isGameRunning) return;
+
+        const validMoves = getValidMoves(playerPos);
+        if (!validMoves.includes(targetPos)) return;
+
+        const oldPlayerPos = playerPos;
+        const oldOniPos = oniPos;
+
+        // Calculate Oni move with both old and new player positions for smart AI
+        const nextOniPos = calculateOniMove(oldPlayerPos, targetPos);
+
+        // 1. Player moves
+        playerPos = targetPos;
+        updateCharacterPosition(playerEl, playerPos);
+
+        // 2. Oni moves
+        oniPos = nextOniPos;
+        updateCharacterPosition(oniEl, oniPos);
+
+        // 3. Update state
+        turnCount++;
+        turnCountDisplay.textContent = turnCount;
+
+        // Check catch (same spot or swapped places)
+        if (playerPos === oniPos || (playerPos === oldOniPos && oniPos === oldPlayerPos)) {
+            setTimeout(() => gameOver(false), 300); // Wait for animation
+        } else {
+            highlightValidMoves();
+        }
+    };
+
+    // Event Listeners
+    startBtn.addEventListener("click", startGame);
+
+    cells.forEach(cell => {
+        cell.addEventListener("click", () => {
+            const index = parseInt(cell.getAttribute("data-index"));
+            processTurn(index);
+        });
+    });
+
+    // Handle resize to fix character positions
+    window.addEventListener("resize", () => {
+        if (playerPos !== -1) updateCharacterPosition(playerEl, playerPos);
+        if (oniPos !== -1) updateCharacterPosition(oniEl, oniPos);
+    });
+});
+    </script>
+</body>
+</html>

@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>万華鏡</title>
+    <style>
+        /* Google Fontsの読み込み */
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+
+        /* ページ全体のリセットと基本設定 */
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        /* 左上のハンバーガーメニュー（開閉ボタン） */
+        #menu-toggle {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: rgba(15, 15, 20, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 20px;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            z-index: 100;
+            transition: all 0.3s ease;
+            user-select: none;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #menu-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #4facfe;
+        }
+
+        /* UIパネル（操作メニュー）本体のスタイル */
+        #ui-panel {
+            position: absolute;
+            top: 80px;
+            left: 24px;
+            background: rgba(15, 15, 20, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            color: #fff;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            min-width: 300px;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            transform: translateX(-150%);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 90;
+        }
+
+        #ui-panel.open {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        h1 {
+            margin: 0 0 16px 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            color: #ccc;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        select:focus {
+            border-color: #4facfe;
+            box-shadow: 0 0 8px rgba(79, 172, 254, 0.5);
+        }
+
+        .range-inputs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .range-inputs input {
+            width: 80px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .range-inputs input:focus {
+            border-color: #4facfe;
+        }
+
+        .range-inputs span {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4facfe;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.8);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            border: none;
+            color: #000;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .info {
+            font-size: 0.95rem;
+            color: #ddd;
+            line-height: 1.6;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info p {
+            margin: 0 0 8px 0;
+        }
+
+        .info p:last-child {
+            margin: 0;
+        }
+
+        .value-display {
+            font-family: monospace;
+            color: #00f2fe;
+            font-weight: 600;
+            font-size: 1.1em;
+            float: right;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- メニュー開閉ボタン -->
+    <div id="menu-toggle">☰ Menu</div>
+
+    <!-- WebGL描画用のキャンバス -->
+    <canvas id="glcanvas"></canvas>
+
+    <!-- 操作パネル本体 -->
+    <div id="ui-panel">
+        <h1>万華鏡</h1>
+
+        <div class="control-group">
+            <label for="fractal-type">表示するフラクタル</label>
+            <select id="fractal-type">
+                <option value="0">ジュリア集合</option>
+                <option value="1">マンデルブロ集合</option>
+                <option value="2">バーニングシップ (ジュリア)</option>
+                <option value="3">バーニングシップ (マンデルブロ)</option>
+                <option value="4">トライコーン (ジュリア)</option>
+                <option value="5">トライコーン (マンデルブロ)</option>
+                <option value="6">正弦波 (ジュリア)</option>
+                <option value="7">余弦波 (ジュリア)</option>
+                <option value="8">指数 (ジュリア)</option>
+                <option value="9">ニュートン</option>
+                <option value="10">ケルティック (ジュリア)</option>
+                <option value="11">バッファロー (ジュリア)</option>
+                <option value="12">サイモンブロ (ジュリア)</option>
+                <option value="13">垂直バーニングシップ (ジュリア)</option>
+                <option value="14">Z³ (ジュリア)</option>
+                <option value="15">Z⁴ (ジュリア)</option>
+                <option value="16">Sin×Cos (ジュリア)</option>
+                <option value="17">Z⁴+Z² (ジュリア)</option>
+                <option value="18">Exp+Z² (ジュリア)</option>
+                <option value="19">Z⁵ (ジュリア)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>X軸の操作範囲</label>
+            <div class="range-inputs">
+                <input type="number" id="x-min" step="0.1" value="-3">
+                <span>〜</span>
+                <input type="number" id="x-max" step="0.1" value="3">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Y軸の操作範囲</label>
+            <div class="range-inputs">
+                <input type="number" id="y-min" step="0.1" value="-3">
+                <span>〜</span>
+                <input type="number" id="y-max" step="0.1" value="3">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>スワイプ感度: <span id="sensitivity-val">0.5</span></label>
+            <input type="range" id="swipe-sensitivity" min="0.1" max="2.0" step="0.1" value="0.5" style="width: 100%;">
+        </div>
+
+        <div class="control-group" style="display: flex; align-items: center; justify-content: space-between;">
+            <label for="ssaa-toggle" style="margin-bottom: 0;">高画質モード (SSAA)</label>
+            <input type="checkbox" id="ssaa-toggle" style="width: 18px; height: 18px; cursor: pointer;">
+        </div>
+
+        <div class="control-group">
+            <button id="reset-btn">デフォルトに戻す</button>
+        </div>
+
+        <div class="info">
+            <p>パラメータ</p>
+            <p><span id="label-x">Param X:</span> <span id="val-x" class="value-display">0.000</span></p>
+            <p><span id="label-y">Param Y:</span> <span id="val-y" class="value-display">0.000</span></p>
+        </div>
+    </div>
+
+    <!-- Vertex Shader (頂点シェーダー): 画面全体に四角形を描画するだけのシンプルな処理 -->
+    <script id="v-shader" type="x-shader/x-vertex">
+        attribute vec2 a_position;
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+    </script>
+
+    <!-- Fragment Shader (フラグメントシェーダー): 実際のフラクタル計算と描画を行うメイン処理 -->
+    <script id="f-shader" type="x-shader/x-fragment">
+        precision highp float;
+
+        uniform vec2 u_resolution;
+        uniform vec2 u_param;
+        uniform float u_time;
+        uniform int u_fractal_type;
+
+        // プレミアムで美しいカラーパレットを生成するコサイン関数
+        vec3 palette( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d ) {
+            return a + b*cos( 6.28318*(c*t+d) );
+        }
+
+        // 双曲線関数と各種複素数の計算関数群
+        float cosh_val(float x) { return 0.5 * (exp(x) + exp(-x)); }
+        float sinh_val(float x) { return 0.5 * (exp(x) - exp(-x)); }
+
+        // ----------------------------------------------------
+        // 複素数の数学演算関数（GLSLには標準で複素数型がないため自作）
+        // ----------------------------------------------------
+        
+        // 複素数の掛け算: (a + bi) * (c + di) = (ac - bd) + (ad + bc)i
+        vec2 complex_mul(vec2 a, vec2 b) { return vec2(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x); }
+        
+        // 複素数のべき乗 (z^p) pも複素数(a + bi)として扱う
+        vec2 complex_pow(vec2 z, vec2 p) {
+            float r = length(z);
+            if (r == 0.0) return vec2(0.0);
+            float theta = atan(z.y, z.x);
+            float ln_r = log(r);
+            float new_r = exp(p.x * ln_r - p.y * theta);
+            float new_theta = p.x * theta + p.y * ln_r;
+            return new_r * vec2(cos(new_theta), sin(new_theta));
+        }
+        
+        // 複素数のサイン、コサイン、指数関数
+        vec2 complex_sin(vec2 z) { return vec2(sin(z.x) * cosh_val(z.y), cos(z.x) * sinh_val(z.y)); }
+        vec2 complex_cos(vec2 z) { return vec2(cos(z.x) * cosh_val(z.y), -sin(z.x) * sinh_val(z.y)); }
+        vec2 complex_exp(vec2 z) { float ea = exp(z.x); return vec2(ea * cos(z.y), ea * sin(z.y)); }
+        
+        // 複素数の割り算
+        vec2 complex_div(vec2 a, vec2 b) { float d = dot(b, b); return vec2(dot(a, b), a.y*b.x - a.x*b.y) / d; }
+
+        // ----------------------------------------------------
+        // ピクセルごとのフラクタル計算と色決定を行うメイン関数
+        // ----------------------------------------------------
+        vec3 render(vec2 fragCoord) {
+            // ピクセルの座標を画面中央を原点とする正規化座標（-1.0〜1.0程度）に変換
+            // 縦横比（アスペクト比）が崩れないように min(u_resolution.y, u_resolution.x) で割る
+            vec2 uv = (fragCoord - 0.5 * u_resolution.xy) / min(u_resolution.y, u_resolution.x);
+            
+            vec2 z, c;
+            int max_iter = 100; // 計算の最大ループ回数（パフォーマンス維持のため100に制限）
+            int iter = 0;       // 何回目のループで発散（無限大に飛んでいく）したかを数えるカウンター
+            vec2 power = u_param;    // Xを実数部、Yを虚数部とした複素数ベキ用パラメータ
+
+            // フラクタルの種類に応じて初期値 (z, c) を設定
+            // u_fractal_type が 1, 3, 5 の場合はマンデルブロ集合モード（ピクセル座標をCとして扱う）
+            if (u_fractal_type == 1 || u_fractal_type == 3 || u_fractal_type == 5) {
+                c = uv * 2.5; c.x -= 0.5; z = c;      
+            } else if (u_fractal_type == 9) {
+                z = uv * 2.5; c = u_param; // ニュートンフラクタル用の初期値
+            } else {
+                // それ以外はジュリア集合モード（マウス座標をCとして扱い、ピクセル座標をZの初期値とする）
+                z = uv * 2.5; c = u_param;
+            }
+
+            // ----------------------------------------------------
+            // フラクタルの反復計算（コアロジック）
+            // ----------------------------------------------------
+            for (int i = 0; i < 100; i++) {
+                if (u_fractal_type == 0) z = complex_mul(z, z) + c;
+                else if (u_fractal_type == 1) z = complex_pow(z, power) + c;
+                else if (u_fractal_type == 2) { vec2 absZ = vec2(abs(z.x), abs(z.y)); z = complex_mul(absZ, absZ) + c; }
+                else if (u_fractal_type == 3) { vec2 absZ = vec2(abs(z.x), abs(z.y)); z = complex_pow(absZ, power) + c; }
+                else if (u_fractal_type == 4) { vec2 conjZ = vec2(z.x, -z.y); z = complex_mul(conjZ, conjZ) + c; }
+                else if (u_fractal_type == 5) { vec2 conjZ = vec2(z.x, -z.y); z = complex_pow(conjZ, power) + c; }
+                else if (u_fractal_type == 6) z = complex_mul(c, complex_sin(z));
+                else if (u_fractal_type == 7) z = complex_mul(c, complex_cos(z));
+                else if (u_fractal_type == 8) z = complex_mul(c, complex_exp(z));
+                else if (u_fractal_type == 9) {
+                    vec2 z2 = complex_mul(z, z);
+                    vec2 z3 = complex_mul(z2, z);
+                    vec2 fz = z3 - vec2(1.0, 0.0);
+                    vec2 dfz = 3.0 * z2;
+                    z = z - complex_mul(c, complex_div(fz, dfz));
+                }
+                else if (u_fractal_type == 10) { vec2 z2 = complex_mul(z, z); z = vec2(abs(z2.x), z2.y) + c; }
+                else if (u_fractal_type == 11) { z = vec2(abs(z.x*z.x - z.y*z.y), 2.0*abs(z.x*z.y)) + c; }
+                else if (u_fractal_type == 12) { z = complex_mul(z, z) + z + c; }
+                else if (u_fractal_type == 13) { vec2 pbsZ = vec2(abs(z.x), z.y); z = complex_mul(pbsZ, pbsZ) + c; }
+                else if (u_fractal_type == 14) { z = complex_mul(complex_mul(z, z), z) + c; }
+                else if (u_fractal_type == 15) { vec2 z2 = complex_mul(z, z); z = complex_mul(z2, z2) + c; }
+                else if (u_fractal_type == 16) { z = complex_mul(complex_sin(z), complex_cos(z)) + c; }
+                else if (u_fractal_type == 17) { vec2 z2 = complex_mul(z, z); z = complex_mul(z2, z2) + z2 + c; }
+                else if (u_fractal_type == 18) { z = complex_exp(z) + complex_mul(z, z) + c; }
+                else if (u_fractal_type == 19) { vec2 z2 = complex_mul(z, z); vec2 z4 = complex_mul(z2, z2); z = complex_mul(z4, z) + c; }
+
+                // 発散条件の判定（値がどれくらい大きくなったら無限大とみなすか）
+                if (u_fractal_type == 6 || u_fractal_type == 7 || u_fractal_type == 8 || u_fractal_type == 16 || u_fractal_type == 18) {
+                    if (length(z) > 50.0) break; // 三角関数系は急激に大きくなるため閾値を広めに設定
+                } else if (u_fractal_type == 9) {
+                    // ニュートンフラクタルは、特定の解（根）に近づいたらループを終了する
+                    float d1 = length(z - vec2(1.0, 0.0));
+                    float d2 = length(z - vec2(-0.5, 0.866025));
+                    float d3 = length(z - vec2(-0.5, -0.866025));
+                    if (d1 < 0.01 || d2 < 0.01 || d3 < 0.01) break;
+                } else {
+                    // 通常のフラクタルは半径が 2.0 (length(z) > 4.0 は 2^2) を超えれば発散確定
+                    if (length(z) > 4.0) break;
+                }
+                iter++; // ループ回数をカウントアップ
+            }
+
+            // ----------------------------------------------------
+            // 計算結果（ループ回数）をもとに色を決定する
+            // ----------------------------------------------------
+
+            // 発散しなかった（集合の内側にある）ピクセルは暗い青色の背景にする
+            if (iter == max_iter) return vec3(0.02, 0.02, 0.04);
+            
+            // ループ回数だと段階的（縞模様）になってしまうため、対数を使って滑らかな値（smooth_iter）に補間する
+            float smooth_iter;
+            if (u_fractal_type == 9) {
+                float angle = atan(z.y, z.x);
+                smooth_iter = (angle / 3.14159) * 0.5 + 0.5 + u_time * 0.05;
+                smooth_iter *= float(max_iter);
+            } else {
+                smooth_iter = float(iter) - log2(max(1.0, log2(length(z))));
+            }
+            
+            float t = smooth_iter / float(max_iter) * 1.5 + u_time * 0.05;
+            
+            // パレットの色味を決める係数
+            vec3 a = vec3(0.5, 0.5, 0.5);
+            vec3 b = vec3(0.5, 0.5, 0.5);
+            vec3 c_pal = vec3(1.0, 1.0, 1.0);
+            vec3 d = vec3(0.00, 0.33, 0.67);
+            
+            // コサインパレットからベースの色を取得
+            vec3 color = palette(t, a, b, c_pal, d);
+            
+            // イテレーションが深い（内側に近い）部分に青白い光のグロー効果を追加してサイバー感を演出
+            float glow = exp(-smooth_iter * 0.05);
+            color += vec3(0.2, 0.5, 1.0) * glow * 0.6;
+            
+            return color;
+        }
+
+        uniform int u_high_quality; // 高画質モードのON/OFFフラグ
+
+        // ----------------------------------------------------
+        // フラグメントシェーダーのエントリーポイント（最終的なピクセルの色を出力）
+        // ----------------------------------------------------
+        void main() {
+            vec3 col = vec3(0.0);
+            
+            if (u_high_quality == 1) {
+                // 高画質モード: 2x2 のスーパーサンプル・アンチエイリアス (SSAA)
+                // 1つのピクセルを4つに分割して計算し、平均を取ることでジャギ（ギザギザ）をなくす
+                for(int m=0; m<2; m++) {
+                    for(int n=0; n<2; n++) {
+                        // ピクセル内のオフセット座標を計算 (-0.25, +0.25)
+                        vec2 o = vec2(float(m), float(n)) / 2.0 - 0.25;
+                        col += render(gl_FragCoord.xy + o); // 分割した位置でrender関数を実行
+                    }
+                }
+                col /= 4.0; // 4回の計算結果を平均化
+            } else {
+                // 通常モード: 1ピクセルにつき1回の計算（軽量で高速）
+                col = render(gl_FragCoord.xy);
+            }
+            
+            // ビネット効果（画面の四隅を少し暗くして、中心に視線を集める演出）
+            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+            col *= pow(16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y), 0.15);
+            
+            // 最終的な色を画面に出力
+            gl_FragColor = vec4(col, 1.0);
+        }
+    </script>
+
+    <!-- JavaScript: WebGLの制御、UIのイベント処理、アニメーション -->
+    <script>
+        // ----------------------------------------------------
+        // 初期設定とUIのトグル制御
+        // ----------------------------------------------------
+
+        // キャンバス要素を取得し、WebGLコンテキストを初期化
+        const canvas = document.getElementById('glcanvas');
+        const gl = canvas.getContext('webgl');
+
+        // WebGLがブラウザでサポートされていない場合はエラーを出す
+        if (!gl) {
+            alert('WebGLがサポートされていません。');
+            throw new Error('WebGL not supported');
+        }
+
+        // ハンバーガーメニューの開閉に関する要素を取得
+        const menuToggle = document.getElementById('menu-toggle');
+        const uiPanel = document.getElementById('ui-panel');
+        let isMenuOpen = false; // メニューが現在開いているかどうかを管理するフラグ
+
+        menuToggle.addEventListener('click', () => {
+            isMenuOpen = !isMenuOpen;
+            if (isMenuOpen) {
+                uiPanel.classList.add('open');
+                menuToggle.innerText = '✕ Close';
+            } else {
+                uiPanel.classList.remove('open');
+                menuToggle.innerText = '☰ Menu';
+            }
+        });
+
+        // ----------------------------------------------------
+        // WebGLシェーダーのコンパイルとプログラムのリンク
+        // ----------------------------------------------------
+
+        // シェーダー（頂点・フラグメント）をコンパイルするためのヘルパー関数
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source); // シェーダーのソースコードを設定
+            gl.compileShader(shader);        // コンパイルを実行
+
+            // コンパイルに失敗した場合はエラーログを出力して終了
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compile failed:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        // HTML内のscriptタグからソースコードを読み込み、それぞれのシェーダーを作成
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, document.getElementById('v-shader').text);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, document.getElementById('f-shader').text);
+
+        // コンパイルしたシェーダーをプログラムにアタッチしてリンク（統合）する
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+
+        // ----------------------------------------------------
+        // 描画用バッファの作成とデータの転送
+        // ----------------------------------------------------
+
+        // 画面全体を覆う四角形（2つの三角形）の頂点データを作成
+        // この四角形に対してフラグメントシェーダーを適用することでピクセルごとの計算を行う
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, // 1つ目の三角形の座標
+            -1.0, 1.0, 1.0, -1.0, 1.0, 1.0,   // 2つ目の三角形の座標
+        ]), gl.STATIC_DRAW);
+
+        // 頂点シェーダーの "a_position" 属性にバッファを紐付ける
+        const positionLocation = gl.getAttribLocation(program, "a_position");
+        gl.enableVertexAttribArray(positionLocation);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0); // 1頂点につき2つのfloat値(x, y)を使用
+
+        // ----------------------------------------------------
+        // シェーダーに渡す変数（ユニフォーム）のロケーション取得と初期状態の定義
+        // ----------------------------------------------------
+
+        // シェーダー内の uniform 変数の位置を取得
+        const resolutionLocation = gl.getUniformLocation(program, "u_resolution"); // 画面解像度
+        const paramLocation = gl.getUniformLocation(program, "u_param");           // ユーザーが操作するパラメータ (Cの値など)
+        const timeLocation = gl.getUniformLocation(program, "u_time");             // アニメーション用の経過時間
+        const fractalTypeLocation = gl.getUniformLocation(program, "u_fractal_type"); // 選択されているフラクタルの種類
+        const highQualityLocation = gl.getUniformLocation(program, "u_high_quality"); // 高画質モード(SSAA)のオンオフ
+
+        // 高画質モード（SSAA）の設定
+        let isHighQuality = false; // デフォルトはオフ（パフォーマンス優先）
+        document.getElementById('ssaa-toggle').addEventListener('change', (e) => {
+            isHighQuality = e.target.checked; // チェックボックスの状態で切り替え
+        });
+
+        // マウス位置の補間アニメーション用の変数
+        let targetMouseX = 0.5;   // ユーザーの実際の入力目標値 (0.0 〜 1.0)
+        let targetMouseY = 0.5;
+        let currentMouseX = 0.5;  // 描画に使われる現在値（滑らかに追従する）
+        let currentMouseY = 0.5;
+
+        let fractalType = 16;     // デフォルトのフラクタル番号 (16: Sin*Cos ジュリア)
+
+        // 最後のユーザー操作から何ミリ秒経過したかを記録する変数（自動アニメーション判定用）
+        let lastInteractionTime = performance.now();
+
+        // パラメータ表示用のHTML要素を取得
+        const valXEl = document.getElementById('val-x');
+        const valYEl = document.getElementById('val-y');
+        const valXLabel = document.getElementById('label-x');
+        const valYLabel = document.getElementById('label-y');
+
+        function getFractalMode(type) {
+            if ([1, 3, 5].includes(type)) return 'mandelbrot';
+            if (type === 9) return 'newton';
+            return 'julia';
+        }
+
+        // 選択されたフラクタルの種類（モード）に応じて、パラメータの操作範囲を最適な値に自動設定する
+        function updateDefaultRanges() {
+            const mode = getFractalMode(fractalType);
+            if (mode === 'julia') {
+                // ジュリア集合は複素数Cの範囲を -3 〜 3 にする
+                document.getElementById('x-min').value = -3;
+                document.getElementById('x-max').value = 3;
+                document.getElementById('y-min').value = -3;
+                document.getElementById('y-max').value = 3;
+            } else if (mode === 'mandelbrot') {
+                // マンデルブロ集合はX軸をZのべき乗として使用（中心0.5で2.0になるように設定）
+                document.getElementById('x-min').value = -2.0;
+                document.getElementById('x-max').value = 6.0;
+                // Y軸はベキ乗の虚数部として使用（中心0.5で虚数部0.0になるように設定）
+                document.getElementById('y-min').value = -2.0;
+                document.getElementById('y-max').value = 2.0;
+            } else if (mode === 'newton') {
+                // ニュートンフラクタルは緩和係数aとして使用（中心0.5で1.0になるように設定）
+                document.getElementById('x-min').value = 0.0;
+                document.getElementById('x-max').value = 2.0;
+                document.getElementById('y-min').value = -1.0;
+                document.getElementById('y-max').value = 1.0;
+            }
+        }
+
+        // ----------------------------------------------------
+        // マウス・タッチ操作のイベントリスナー
+        // ----------------------------------------------------
+
+        // マウスが画面上を動いたとき、座標を 0.0 〜 1.0 に正規化して targetMouseX/Y に設定
+        window.addEventListener('mousemove', (e) => {
+            targetMouseX = e.clientX / window.innerWidth;
+            targetMouseY = 1.0 - (e.clientY / window.innerHeight); // Y軸は画面下を0にするため反転
+            lastInteractionTime = performance.now(); // 操作時間を更新して自動アニメーションを解除
+        });
+
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+
+        // タッチ操作（スワイプ）の開始時の処理
+        function handleTouchStart(e) {
+            lastInteractionTime = performance.now();
+            // イベントが発生したのがキャンバスまたは背景の場合のみ処理する（UI操作時は無視）
+            if (e.target === canvas || e.target === document.body) {
+                if (e.touches.length > 0) {
+                    lastTouchX = e.touches[0].clientX; // 最初のタッチ座標を記録
+                    lastTouchY = e.touches[0].clientY;
+                }
+            }
+        }
+
+        // タッチして指を動かした（スワイプした）時の処理
+        function handleTouchMove(e) {
+            lastInteractionTime = performance.now();
+            if (e.target === canvas || e.target === document.body) {
+                if (e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    const deltaX = touch.clientX - lastTouchX; // 前回からの移動量 (X)
+                    const deltaY = touch.clientY - lastTouchY; // 前回からの移動量 (Y)
+
+                    // UIで設定された感度を取得
+                    const sensitivity = parseFloat(document.getElementById('swipe-sensitivity').value) || 0.5;
+
+                    // 移動量と感度に基づいてターゲット値を更新（画面サイズに対する比率で計算）
+                    targetMouseX += (deltaX / window.innerWidth) * sensitivity;
+                    targetMouseY -= (deltaY / window.innerHeight) * sensitivity;
+
+                    // 値が 0.0 〜 1.0 の範囲外に飛び出さないようにクランプ（制限）する
+                    targetMouseX = Math.max(0, Math.min(1, targetMouseX));
+                    targetMouseY = Math.max(0, Math.min(1, targetMouseY));
+
+                    // 次の計算のために座標を更新
+                    lastTouchX = touch.clientX;
+                    lastTouchY = touch.clientY;
+                }
+            }
+        }
+        window.addEventListener('touchstart', handleTouchStart, { passive: true });
+        window.addEventListener('touchmove', handleTouchMove, { passive: true });
+
+        const sensitivityInput = document.getElementById('swipe-sensitivity');
+        const sensitivityVal = document.getElementById('sensitivity-val');
+        // 感度スライダーが動いたとき、横の数値をリアルタイムで更新する
+        if (sensitivityInput && sensitivityVal) {
+            sensitivityInput.addEventListener('input', (e) => {
+                sensitivityVal.innerText = parseFloat(e.target.value).toFixed(1);
+            });
+        }
+
+        // フラクタルの種類変更時のイベント処理
+        document.getElementById('fractal-type').addEventListener('change', (e) => {
+            fractalType = parseInt(e.target.value); // 文字列から数値に変換して保存
+            updateDefaultRanges(); // 種類に合わせてX/Yの範囲をリセット
+        });
+
+        // ----------------------------------------------------
+        // 値の計算とUI更新
+        // ----------------------------------------------------
+
+        // 0.0〜1.0 のマウス座標を、UIで設定された [最小値 〜 最大値] の範囲の実際のパラメータ値に変換する
+        function getMappedParams(mx, my) {
+            const xMin = parseFloat(document.getElementById('x-min').value) || 0;
+            const xMax = parseFloat(document.getElementById('x-max').value) || 0;
+            const yMin = parseFloat(document.getElementById('y-min').value) || 0;
+            const yMax = parseFloat(document.getElementById('y-max').value) || 0;
+
+            const px = xMin + (xMax - xMin) * mx; // 線形補間で計算
+            const py = yMin + (yMax - yMin) * my;
+            return { px, py };
+        }
+
+        // 現在のパラメータ値をUIパネル上のテキストに反映させる
+        function updateUIText(px, py) {
+            const mode = getFractalMode(fractalType);
+            // フラクタルの性質に応じてラベル名（実部・虚部・べき乗など）を切り替える
+            if (mode === 'julia') {
+                valXEl.innerText = `${px.toFixed(3)}`;
+                valYEl.innerText = `${py.toFixed(3)}`;
+                valXLabel.innerText = 'C 実部:';
+                valYLabel.innerText = 'C 虚部:';
+            } else if (mode === 'mandelbrot') {
+                valXEl.innerText = `${px.toFixed(3)}`;
+                valYEl.innerText = `${py.toFixed(3)}`;
+                valXLabel.innerText = 'Zのべき乗:';
+                valYLabel.innerText = 'C 虚部:';
+            } else if (mode === 'newton') {
+                valXEl.innerText = `${px.toFixed(3)}`;
+                valYEl.innerText = `${py.toFixed(3)}`;
+                valXLabel.innerText = '緩和 実部:';
+                valYLabel.innerText = '緩和 虚部:';
+            }
+        }
+
+        // ウィンドウサイズが変更されたときにキャンバスとWebGLの描画領域（ビューポート）を合わせる
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        window.addEventListener('resize', resize);
+
+        // ページ読み込み時の初期化処理
+        document.getElementById('fractal-type').value = "16"; // ドロップダウンを16番にセット
+        updateDefaultRanges();                                // 操作範囲を初期化
+        resize();                                             // サイズを合わせて描画準備完了
+
+        // ----------------------------------------------------
+        // メインレンダリングループ
+        // ----------------------------------------------------
+
+        let startTime = performance.now();
+        let lastTime = startTime;
+
+        // 毎フレーム実行されるメインの描画ループ
+        function render(currentTime) {
+            // 前回のフレームからの経過時間（デルタタイム）を計算（最小1msを保証）
+            const deltaTime = Math.max(1, currentTime - lastTime);
+            lastTime = currentTime;
+
+            // 自動アニメーション: もしユーザーが10秒間(10000ms)何も操作していなければ、
+            // 時間経過に伴ってゆっくりとターゲット座標を波のように変動させる
+            if (currentTime - lastInteractionTime > 10000) {
+                const t = currentTime * 0.00005; // アニメーションの速度
+                targetMouseX = 0.5 + Math.sin(t * 0.7) * 0.3; // 中央を中心にサイン波で揺らす
+                targetMouseY = 0.5 + Math.cos(t * 0.5) * 0.3; // 中央を中心にコサイン波で揺らす
+            }
+
+            // 線形補間(LERP)を使って、現在のマウス座標を滑らかにターゲットに近づける
+            // 指数関数を使うことでフレームレートに依存しない滑らかさを実現
+            const lerpFactor = 1.0 - Math.exp(-0.005 * deltaTime);
+            currentMouseX += (targetMouseX - currentMouseX) * lerpFactor;
+            currentMouseY += (targetMouseY - currentMouseY) * lerpFactor;
+
+            // 補間された現在の座標から、実際のフラクタル用パラメータ (px, py) を計算
+            const { px, py } = getMappedParams(currentMouseX, currentMouseY);
+            updateUIText(px, py); // UIのテキストを更新
+
+            // WebGLの描画設定
+            gl.useProgram(program); // 使用するシェーダープログラムを指定
+            // 各種ユニフォーム（シェーダー側で使う変数）を送信
+            gl.uniform2f(resolutionLocation, canvas.width, canvas.height);  // 画面サイズ
+            gl.uniform2f(paramLocation, px, py);                            // 計算されたパラメータ
+            gl.uniform1f(timeLocation, (currentTime - startTime) / 1000.0); // 経過時間（秒単位）
+            gl.uniform1i(fractalTypeLocation, fractalType);                 // フラクタルの種類
+            gl.uniform1i(highQualityLocation, isHighQuality ? 1 : 0);       // 高画質モードのフラグ
+
+            // 三角形を描画（画面全体を覆う四角形に対してフラグメントシェーダーを走らせる）
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            // 次のフレームの描画を予約
+            requestAnimationFrame(render);
+        }
+
+        // 最初のフレーム描画を開始
+        requestAnimationFrame(render);
+
+        // デフォルトに戻すボタンの処理
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            targetMouseX = 0.5;   // ターゲット座標を中央に戻す
+            targetMouseY = 0.5;
+            currentMouseX = 0.5;  // 現在の座標も中央に戻す（アニメーションをスキップ）
+            currentMouseY = 0.5;
+
+            // スワイプ感度も初期値に戻す
+            document.getElementById('swipe-sensitivity').value = 0.5;
+            document.getElementById('sensitivity-val').innerText = '0.5';
+
+            updateDefaultRanges(); // 選択中のフラクタルのデフォルト範囲を再適用
+        });
+    </script>
+</body>
+
+</html>

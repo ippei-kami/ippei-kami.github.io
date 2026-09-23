@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>縦シュー</title>
+    <style>
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Courier New', 'Meiryo', 'メイリオ', sans-serif;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+}
+
+#game-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+canvas {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+    border: 2px solid #00ffff;
+    border-radius: 4px;
+    background-color: #000;
+}
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="480" height="640"></canvas>
+    </div>
+    <script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// 画面サイズ
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
+
+// 入力状態
+const keys = {
+    ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+    w: false, a: false, s: false, d: false,
+    z: false, j: false, Enter: false
+};
+let prevKeys = { ...keys };
+
+// スマホタッチ操作の状態
+let isTouching = false;
+let lastTouchX = null;
+let lastTouchY = null;
+let touchJustStarted = false;
+
+window.addEventListener('keydown', (e) => {
+    if (keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.key.toLowerCase())) {
+        keys[e.key] = true;
+        keys[e.key.toLowerCase()] = true;
+    }
+    if (e.key === 'Enter') keys.Enter = true;
+});
+
+window.addEventListener('keyup', (e) => {
+    if (keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.key.toLowerCase())) {
+        keys[e.key] = false;
+        keys[e.key.toLowerCase()] = false;
+    }
+    if (e.key === 'Enter') keys.Enter = false;
+});
+
+// タッチイベントの登録
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    isTouching = true;
+    touchJustStarted = true;
+    
+    const touch = e.touches[0];
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!isTouching) return;
+    
+    const touch = e.touches[0];
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const dx = (touch.clientX - lastTouchX) * scaleX;
+    const dy = (touch.clientY - lastTouchY) * scaleY;
+    
+    if (gameState === 'PLAYING') {
+        player.x += dx;
+        player.y += dy;
+    }
+    
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    isTouching = false;
+    lastTouchX = null;
+    lastTouchY = null;
+}, { passive: false });
+
+// オーディオコンテキストとBGM管理
+let audioCtx = null;
+let bgmInterval = null;
+let isBgmPlaying = false;
+let noteIndex = 0;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+// BGM再生（テクノ風ループ）
+function startBGM() {
+    if (!audioCtx || isBgmPlaying) return;
+    isBgmPlaying = true;
+    noteIndex = 0;
+    
+    bgmInterval = setInterval(() => {
+        if (gameState !== 'PLAYING') return;
+        const now = audioCtx.currentTime;
+        
+        // キックドラム（4つ打ち）
+        if (noteIndex % 4 === 0) {
+            const kickOsc = audioCtx.createOscillator();
+            const kickGain = audioCtx.createGain();
+            kickOsc.connect(kickGain);
+            kickGain.connect(audioCtx.destination);
+            
+            kickOsc.frequency.setValueAtTime(150, now);
+            kickOsc.frequency.exponentialRampToValueAtTime(0.01, now + 0.1);
+            kickGain.gain.setValueAtTime(0.3, now);
+            kickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            kickOsc.start(now);
+            kickOsc.stop(now + 0.1);
+        }
+        
+        // テクノベース
+        const bassFreq = [55, 55, 65, 55, 73, 55, 82, 65][noteIndex % 8];
+        const bassOsc = audioCtx.createOscillator();
+        const bassGain = audioCtx.createGain();
+        bassOsc.type = 'sawtooth';
+        bassOsc.connect(bassGain);
+        bassGain.connect(audioCtx.destination);
+        
+        bassOsc.frequency.setValueAtTime(bassFreq, now);
+        bassGain.gain.setValueAtTime(0.06, now);
+        bassGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        bassOsc.start(now);
+        bassOsc.stop(now + 0.1);
+        
+        noteIndex++;
+    }, 125);
+}
+
+function stopBGM() {
+    if (bgmInterval) {
+        clearInterval(bgmInterval);
+        bgmInterval = null;
+    }
+    isBgmPlaying = false;
+}
+
+// 効果音の生成
+function playSound(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    
+    if (type === 'shoot') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'hit') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'explosion') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+        gainNode.gain.setValueAtTime(0.2, now); // ダメージ時の爆発音を少し大きく
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    } else if (type === 'start') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(880, now + 0.1);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    } else if (type === 'levelup') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(554.37, now + 0.1);
+        osc.frequency.setValueAtTime(659.25, now + 0.2);
+        osc.frequency.setValueAtTime(880, now + 0.3);
+        gainNode.gain.setValueAtTime(0.15, now);
+        gainNode.gain.setValueAtTime(0.15, now + 0.3);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        osc.start(now);
+        osc.stop(now + 0.6);
+    }
+}
+
+// ゲームの状態: 'START', 'PLAYING', 'GAMEOVER'
+let gameState = 'START';
+
+// オブジェクトの配列と演出変数
+let playerBullets = [];
+let enemyBullets = [];
+let enemies = [];
+let particles = [];
+let shockwaves = []; // 衝撃波エフェクト用
+let score = 0;
+let life = 3;
+let currentLevel = 1;
+let screenShake = 0; // 画面揺れの時間（ms）
+let flashAlpha = 0;  // 画面フラッシュの透明度
+let levelUpFlash = 0; // レベルアップ強調時間（ms）
+let lifeFlash = 0; // ライフ変動強調時間（ms）
+
+// 星空背景用（多重スクロール対応）
+let stars = [];
+for (let i = 0; i < 70; i++) {
+    let layer = Math.floor(Math.random() * 3);
+    let speed, size, colorAlpha;
+    if (layer === 0) { // 奥（遅い・暗い）
+        speed = Math.random() * 0.5 + 0.2;
+        size = 1;
+        colorAlpha = 0.1;
+    } else if (layer === 1) { // 中間
+        speed = Math.random() * 1.0 + 0.8;
+        size = 2;
+        colorAlpha = 0.3;
+    } else { // 手前（速い・明るい）
+        speed = Math.random() * 2.0 + 2.0;
+        size = 3;
+        colorAlpha = 0.5;
+    }
+    stars.push({
+        x: Math.random() * WIDTH,
+        y: Math.random() * HEIGHT,
+        vy: speed,
+        size: size,
+        color: `rgba(255, 255, 255, ${colorAlpha})`
+    });
+}
+
+// プレイヤー自機
+const player = {
+    x: WIDTH / 2,
+    y: HEIGHT - 80,
+    width: 24,
+    height: 32,
+    speed: 5,
+    color: '#00ffff',
+    lastShot: 0,
+    shotDelay: 100 // 連射間隔(ms)
+};
+
+function resetGame() {
+    playerBullets = [];
+    enemyBullets = [];
+    enemies = [];
+    particles = [];
+    shockwaves = [];
+    score = 0;
+    life = 3;
+    currentLevel = 1;
+    screenShake = 0;
+    flashAlpha = 0;
+    levelUpFlash = 0;
+    lifeFlash = 0;
+    player.x = WIDTH / 2;
+    player.y = HEIGHT - 80;
+}
+
+// 描画ヘルパー
+function drawNeonRect(x, y, w, h, color) {
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.fillRect(x - w/2, y - h/2, w, h);
+    ctx.shadowBlur = 0;
+}
+
+// 衝突判定
+function isColliding(rect1, rect2) {
+    return rect1.x - rect1.width/2 < rect2.x + rect2.width/2 &&
+           rect1.x + rect1.width/2 > rect2.x - rect2.width/2 &&
+           rect1.y - rect1.height/2 < rect2.y + rect2.height/2 &&
+           rect1.y + rect1.height/2 > rect2.y - rect2.height/2;
+}
+
+// ダメージ演出と残機減少処理
+function damagePlayer(sourceX, sourceY, isPassThrough = false) {
+    playSound('explosion');
+    life--;
+    lifeFlash = 1000;
+    
+    // 派手な演出（画面揺れとフラッシュ）
+    screenShake = 400; // 400ms揺らす
+    flashAlpha = 0.8;  // 赤くフラッシュ
+    
+    let numParticles = isPassThrough ? 60 : 100;
+    let baseColor = isPassThrough ? '#ff0000' : player.color;
+
+    // 大量のパーティクルを撒き散らす
+    for(let k = 0; k < numParticles; k++) {
+        particles.push({
+            x: sourceX + (Math.random() - 0.5) * (isPassThrough ? 60 : 30), 
+            y: sourceY,
+            vx: (Math.random() - 0.5) * 20,
+            vy: isPassThrough ? -Math.random() * 20 - 5 : (Math.random() - 0.5) * 20,
+            life: Math.random() * 40 + 20,
+            color: Math.random() < 0.4 ? '#ffffff' : baseColor // 白を混ぜて発光感を出す
+        });
+    }
+
+    if (life <= 0) {
+        gameState = 'GAMEOVER';
+        stopBGM();
+    }
+}
+
+// フォント指定（日本語対応）
+const FONT_FAMILY = '"Courier New", "Meiryo", "メイリオ", sans-serif';
+
+// ゲームループ
+let lastTime = 0;
+function update(time) {
+    const dt = time - lastTime;
+    lastTime = time;
+
+    // 演出の更新
+    if (screenShake > 0) {
+        screenShake -= dt;
+    }
+    if (flashAlpha > 0) {
+        flashAlpha -= dt / 500; // 500msかけてフェードアウト
+    }
+    if (levelUpFlash > 0) {
+        levelUpFlash -= dt;
+    }
+    if (lifeFlash > 0) {
+        lifeFlash -= dt;
+    }
+
+    // 星空の更新
+    stars.forEach(s => {
+        s.y += s.vy;
+        if (s.y > HEIGHT) {
+            s.y = 0;
+            s.x = Math.random() * WIDTH;
+        }
+    });
+
+    const isJustPressed = (key) => keys[key] && !prevKeys[key];
+    const isStartTrigger = isJustPressed('z') || isJustPressed('j') || isJustPressed('Enter') || touchJustStarted;
+
+    if (gameState === 'START') {
+        if (isStartTrigger) {
+            initAudio();
+            playSound('start');
+            resetGame();
+            gameState = 'PLAYING';
+            startBGM(); // BGM開始
+        }
+    } else if (gameState === 'GAMEOVER') {
+        if (isStartTrigger) {
+            gameState = 'START';
+        }
+    } else if (gameState === 'PLAYING') {
+        
+        // --- プレイヤー移動（キーボード） ---
+        let isMoving = false;
+        if (keys.ArrowLeft || keys.a) { player.x -= player.speed; isMoving = true; }
+        if (keys.ArrowRight || keys.d) { player.x += player.speed; isMoving = true; }
+        if (keys.ArrowUp || keys.w) { player.y -= player.speed; isMoving = true; }
+        if (keys.ArrowDown || keys.s) { player.y += player.speed; isMoving = true; }
+        if (isTouching) isMoving = true;
+
+        // 画面外に出ないように制限
+        player.x = Math.max(player.width/2, Math.min(WIDTH - player.width/2, player.x));
+        player.y = Math.max(player.height/2, Math.min(HEIGHT - player.height/2, player.y));
+
+        // 自機の軌跡エフェクト
+        if (isMoving && Math.random() < 0.6) {
+            particles.push({
+                x: player.x + (Math.random() - 0.5) * 10,
+                y: player.y + player.height/2,
+                vx: 0,
+                vy: 2,
+                life: 15,
+                color: player.color
+            });
+        }
+
+        // --- プレイヤーショット ---
+        if ((keys.z || keys.j || isTouching) && time - player.lastShot > player.shotDelay) {
+            playSound('shoot');
+            playerBullets.push({
+                x: player.x,
+                y: player.y - player.height/2,
+                width: 4,
+                height: 16,
+                speed: 12,
+                color: '#00ffff'
+            });
+            player.lastShot = time;
+        }
+
+        // --- 弾の移動 ---
+        for (let i = playerBullets.length - 1; i >= 0; i--) {
+            let b = playerBullets[i];
+            b.y -= b.speed;
+            
+            // 弾の軌跡
+            if (Math.random() < 0.3) {
+                particles.push({
+                    x: b.x, y: b.y + b.height/2,
+                    vx: 0, vy: 1, life: 10, color: '#00ffff'
+                });
+            }
+
+            if (b.y < -50) playerBullets.splice(i, 1);
+        }
+
+        // --- 敵の生成 ---
+        if (Math.random() < 0.02) {
+            let swayProb = (currentLevel - 1) * 0.1; // レベル1は0%、以降10%ずつ増加
+            let isSwaying = Math.random() < swayProb;
+            enemies.push({
+                x: Math.random() * (WIDTH - 40) + 20,
+                y: -30,
+                width: 30,
+                height: 30,
+                speed: Math.random() * 2 + 1,
+                color: '#ff0055',
+                hp: 3,
+                isSwaying: isSwaying,
+                swayPhase: Math.random() * Math.PI * 2,
+                swaySpeed: Math.random() * 0.05 + 0.02,
+                swayAmp: Math.random() * 2 + 1
+            });
+        }
+
+        // --- 敵の移動と当たり判定 ---
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            e.y += e.speed;
+            
+            // 左右への揺れ
+            if (e.isSwaying) {
+                e.swayPhase += e.swaySpeed;
+                e.x += Math.sin(e.swayPhase) * e.swayAmp;
+                e.x = Math.max(e.width/2, Math.min(WIDTH - e.width/2, e.x));
+            }
+
+            // 敵の弾を発射（レベルが上がるごとに頻度が上昇）
+            let fireRate = 0.005 + (currentLevel - 1) * 0.003;
+            if (Math.random() < fireRate) {
+                enemyBullets.push({
+                    x: e.x,
+                    y: e.y + e.height / 2,
+                    width: 8,
+                    height: 8,
+                    speed: e.speed + 3,
+                    color: '#ffff00'
+                });
+            }
+
+            // プレイヤーの弾との当たり判定
+            for (let j = playerBullets.length - 1; j >= 0; j--) {
+                let b = playerBullets[j];
+                if (isColliding(e, b)) {
+                    e.hp--;
+                    playerBullets.splice(j, 1);
+                    playSound('hit');
+                    
+                    // ヒットスパーク（鋭く散る火花）
+                    for(let k=0; k<8; k++) {
+                        particles.push({
+                            x: b.x, y: b.y,
+                            vx: (Math.random() - 0.5) * 12,
+                            vy: (Math.random() - 0.5) * 12 - 3, // 上方向に弾ける
+                            life: Math.random() * 15 + 5,
+                            color: Math.random() < 0.5 ? '#ffffff' : '#ffff00'
+                        });
+                    }
+
+                    if (e.hp <= 0) {
+                        score += 1;
+                        let newLevel = Math.floor(score / 10) + 1;
+                        if (newLevel > currentLevel) {
+                            currentLevel = newLevel;
+                            life++;
+                            lifeFlash = 1000;
+                            playSound('levelup');
+                            levelUpFlash = 1000; // 1秒強調
+                        }
+                        playSound('explosion');
+                        
+                        // 衝撃波エフェクトの追加
+                        shockwaves.push({
+                            x: e.x,
+                            y: e.y,
+                            radius: 10,
+                            alpha: 1.0,
+                            color: e.color
+                        });
+
+                        enemies.splice(i, 1);
+                        
+                        for(let k=0; k<20; k++) {
+                            particles.push({
+                                x: e.x, y: e.y,
+                                vx: (Math.random() - 0.5) * 10,
+                                vy: (Math.random() - 0.5) * 10,
+                                life: Math.random() * 30 + 10,
+                                color: e.color
+                            });
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // プレイヤーとの当たり判定
+            if (enemies[i] && isColliding(e, player)) {
+                damagePlayer(player.x, player.y, false);
+                enemies.splice(i, 1);
+            }
+
+            // 画面外を通り過ぎた場合のペナルティ処理
+            if (enemies[i] && e.y > HEIGHT + e.height / 2) {
+                damagePlayer(e.x, HEIGHT, true);
+                enemies.splice(i, 1);
+            }
+        }
+
+        // --- 敵の弾の移動と当たり判定 ---
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            let b = enemyBullets[i];
+            b.y += b.speed;
+
+            // プレイヤーとの当たり判定
+            if (isColliding(b, player)) {
+                damagePlayer(player.x, player.y, false);
+                enemyBullets.splice(i, 1);
+                continue;
+            }
+
+            if (b.y > HEIGHT + 50) {
+                enemyBullets.splice(i, 1);
+            }
+        }
+
+        // --- 衝撃波の更新 ---
+        for (let i = shockwaves.length - 1; i >= 0; i--) {
+            let s = shockwaves[i];
+            s.radius += 6; // 広がる速度
+            s.alpha -= 0.04; // フェードアウト速度
+            if (s.alpha <= 0) shockwaves.splice(i, 1);
+        }
+
+        // --- パーティクル更新 ---
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life--;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+    }
+
+    prevKeys = { ...keys };
+    touchJustStarted = false; // フラグのリセット
+
+    draw();
+    requestAnimationFrame(update);
+}
+
+function draw() {
+    // 画面全体を黒で塗りつぶし（全クリア・背景のトレイルなし）
+    ctx.fillStyle = '#000000'; 
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // 星の描画
+    stars.forEach(s => {
+        ctx.fillStyle = s.color;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+    });
+
+    ctx.save(); // 描画状態を保存
+
+    // 画面揺れ（スクリーンシェイク）の適用
+    if (screenShake > 0) {
+        const shakeAmount = 15 * (screenShake / 400); // 最大15pxの揺れ
+        const dx = (Math.random() - 0.5) * shakeAmount;
+        const dy = (Math.random() - 0.5) * shakeAmount;
+        ctx.translate(dx, dy);
+
+        // ダメージ時のグリッチ効果（画面の一部にノイズ色を被せる）
+        if (Math.random() < 0.6) {
+            let sliceY = Math.random() * HEIGHT;
+            let sliceH = Math.random() * 50 + 10;
+            ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255, 0, 85, 0.3)' : 'rgba(0, 255, 255, 0.3)';
+            ctx.fillRect(-10, sliceY, WIDTH + 20, sliceH);
+        }
+    }
+
+    if (gameState === 'START') {
+        ctx.fillStyle = '#00ffff';
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#00ffff';
+        ctx.font = `bold 50px ${FONT_FAMILY}`;
+        ctx.fillText('縦シュー', WIDTH / 2, HEIGHT / 2 - 80);
+        
+        ctx.font = `20px ${FONT_FAMILY}`;
+        ctx.fillText('画面タッチ か Z・J・Enterで開始', WIDTH / 2, HEIGHT / 2 - 10);
+        ctx.shadowBlur = 0;
+        
+        ctx.fillStyle = '#aaaaaa';
+        ctx.font = `14px ${FONT_FAMILY}`;
+        ctx.fillText('【操作方法】', WIDTH / 2, HEIGHT / 2 + 50);
+        ctx.fillText('PC: WASD/方向キーで移動、ZかJでショット', WIDTH / 2, HEIGHT / 2 + 75);
+        ctx.fillText('スマホ: スワイプで移動（自動ショット）', WIDTH / 2, HEIGHT / 2 + 100);
+        ctx.textAlign = 'left';
+    } 
+    else if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
+        
+        if (gameState === 'PLAYING') {
+            drawNeonRect(player.x, player.y, player.width, player.height, player.color);
+        }
+
+        playerBullets.forEach(b => drawNeonRect(b.x, b.y, b.width, b.height, b.color));
+        enemyBullets.forEach(b => drawNeonRect(b.x, b.y, b.width, b.height, b.color));
+        enemies.forEach(e => drawNeonRect(e.x, e.y, e.width, e.height, e.color));
+
+        // 衝撃波の描画
+        shockwaves.forEach(s => {
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 0, 85, ${s.alpha})`; // 赤系で描画
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.radius * 0.8, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${s.alpha * 0.5})`; // 内側の白いリング
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+
+        // パーティクルの描画
+        particles.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, 3, 3);
+        });
+
+        // UI描画
+        ctx.fillStyle = '#00ffff';
+        ctx.font = `18px ${FONT_FAMILY}`;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = '#00ffff';
+        ctx.fillText(`スコア: ${score}`, 20, 30);
+        
+        // レベル表示（レベルアップ時に強調）
+        if (levelUpFlash > 0) {
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            let pulse = Math.abs(Math.sin(Date.now() / 100)) * 5;
+            ctx.font = `bold ${18 + pulse}px ${FONT_FAMILY}`;
+        } else {
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.font = `18px ${FONT_FAMILY}`;
+        }
+        ctx.fillText(`レベル: ${currentLevel}`, 20, 55);
+        
+        // ライフ表示（変動時に強調）
+        if (lifeFlash > 0) {
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            let pulse = Math.abs(Math.sin(Date.now() / 100)) * 5;
+            ctx.font = `bold ${18 + pulse}px ${FONT_FAMILY}`;
+        } else {
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.font = `18px ${FONT_FAMILY}`;
+        }
+        ctx.fillText(`ライフ: ${life}`, 20, 80);
+        
+        ctx.shadowBlur = 0;
+
+        if (gameState === 'GAMEOVER') {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            ctx.fillStyle = '#ff0055';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff0055';
+            ctx.font = `bold 40px ${FONT_FAMILY}`;
+            ctx.fillText('ゲームオーバー', WIDTH / 2, HEIGHT / 2 - 30);
+            
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.font = `24px ${FONT_FAMILY}`;
+            ctx.fillText(`最終スコア: ${score}`, WIDTH / 2, HEIGHT / 2 + 20);
+            
+            ctx.font = `18px ${FONT_FAMILY}`;
+            ctx.fillText('画面タッチかEnterで戻る', WIDTH / 2, HEIGHT / 2 + 70);
+            ctx.shadowBlur = 0;
+            ctx.textAlign = 'left';
+        }
+    }
+
+    ctx.restore(); // 画面揺れのトランスフォームをリセット
+
+    // フラッシュエフェクト（画面全体を赤く光らせる）
+    if (flashAlpha > 0) {
+        ctx.fillStyle = `rgba(255, 0, 50, ${Math.max(0, flashAlpha)})`;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+}
+
+// ゲーム開始
+requestAnimationFrame(update);
+    </script>
+</body>
+
+</html>
