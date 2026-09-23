@@ -1,0 +1,35 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>電工タイピング</title>
+  <link rel="stylesheet" href="./index.css">
+</head>
+
+<body>
+  <h1>電工用語タイピングトレーナー</h1>
+  <div id="desc">
+    文字を入力してエンターキーで確定します<br>
+    英数字は半角・全角も区別されるので注意してください<br>
+    時間は経過時間ではなく、最初のキーを押してからエンターキーを押すまでの時間です
+  </div>
+  <div id="main">
+    <div id="sample"></div>
+    <form onsubmit="return false">
+      <input type="text" id="input" placeholder="ここに入力してください" autofocus>
+      <button id="enter" hidden>確定</button>
+    </form>
+  </div>
+  <div>
+    <p id="result">　</p>
+    <p id="result2">　</p>
+  </div>
+  <!-- <div>&copy; 2026 Ippei Kami.</div> -->
+  <script src="./index.js"></script>
+
+
+</body>
+
+</html>
