@@ -17,11 +17,13 @@ title: アプリ倉庫
 * [万華鏡](/fractal)
 * [音が出る玩具](/ball)
 
-## ゲーム（バイブコーディング教材）
+## ゲーム
+
+バイブコーディング教材
 
 * [９マスおに](/9masu)
 * [縦スクロールシューティング](/tate)
 
-## 
+---
 
 Author: [https://github.com/ippei-kami/](https://github.com/ippei-kami/)
