@@ -902,23 +902,6 @@ body {
   background: rgba(255, 51, 68, 0.2);
 }
 
-/* Google Play Store guide badge banner */
-.play-store-banner {
-  background: linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0, 243, 255, 0.1));
-  border: 1px solid var(--color-green);
-  border-radius: 10px;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.play-store-banner:hover {
-  box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
-}
-
 /* Bottom Navigation Bar (Mobile / Responsive) */
 .bottom-nav {
   display: flex;

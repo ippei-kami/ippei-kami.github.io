@@ -18,6 +18,8 @@ export class GameUI {
     this.game = game;
     this.buyAmountMode = '1'; // '1', '10', 'max'
     this.currentTab = 'core';
+    const urlParams = new URLSearchParams(window.location.search);
+    this.isDebug = urlParams.get('debug') === 'true';
     this.logs = [
       { text: '> CYBER PROTOCOL INITIALIZED.', type: 'info' },
       { text: '> ネットワークグリッドに接続完了。', type: 'success' },
@@ -47,7 +49,6 @@ export class GameUI {
         <div class="header-actions">
           <button id="btn-ambient" class="icon-btn" title="アンビエントBGM">🎵</button>
           <button id="btn-sound" class="icon-btn" title="サウンド切替">🔊</button>
-          <button id="btn-guide" class="icon-btn" title="Google Play配信ガイド">📱</button>
         </div>
       </header>
 
@@ -112,12 +113,14 @@ export class GameUI {
           <div class="list-header">
             <span class="section-title">演算ハードウェア配備</span>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <button id="btn-buy-top-hardware" class="sys-btn" style="background: rgba(255, 0, 127, 0.15); border-color: var(--color-magenta); color: var(--color-magenta); font-weight: bold;">
-                🚀 一括購入 (上位優先)
-              </button>
-              <button id="btn-buy-all-hardware" class="sys-btn" style="background: rgba(0, 243, 255, 0.15); border-color: var(--color-cyan); color: var(--color-cyan); font-weight: bold;">
-                ⚡ 一括購入 (安い順)
-              </button>
+              ${this.isDebug ? `
+                <button id="btn-buy-top-hardware" class="sys-btn" style="background: rgba(255, 0, 127, 0.15); border-color: var(--color-magenta); color: var(--color-magenta); font-weight: bold;">
+                  🚀 一括購入 (上位優先)
+                </button>
+                <button id="btn-buy-all-hardware" class="sys-btn" style="background: rgba(0, 243, 255, 0.15); border-color: var(--color-cyan); color: var(--color-cyan); font-weight: bold;">
+                  ⚡ 一括購入 (安い順)
+                </button>
+              ` : ''}
               <div class="buy-amount-controls">
                 <button class="buy-amt-btn active" data-amt="1">1x</button>
                 <button class="buy-amt-btn" data-amt="10">10x</button>
@@ -132,9 +135,11 @@ export class GameUI {
         <section id="tab-upgrades" class="tab-content">
           <div class="list-header">
             <span class="section-title">研究プロトコル & アルゴリズム</span>
-            <button id="btn-buy-all-upgrades" class="sys-btn" style="background: rgba(255, 230, 0, 0.15); border-color: var(--color-yellow); color: var(--color-yellow); font-weight: bold;">
-              ⚡ 一括研究 (安い順)
-            </button>
+            ${this.isDebug ? `
+              <button id="btn-buy-all-upgrades" class="sys-btn" style="background: rgba(255, 230, 0, 0.15); border-color: var(--color-yellow); color: var(--color-yellow); font-weight: bold;">
+                ⚡ 一括研究 (安い順)
+              </button>
+            ` : ''}
           </div>
           <div class="upgrade-grid" id="upgrade-list"></div>
         </section>
@@ -175,17 +180,6 @@ export class GameUI {
         <!-- TAB 5: SYSTEM & STATS -->
         <section id="tab-system" class="tab-content">
           <div class="system-container">
-            <!-- Google Play Store Banner -->
-            <div class="play-store-banner" id="banner-playstore">
-              <div>
-                <strong style="color: var(--color-green);">🚀 Google Play Store 配信対応</strong>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
-                  PWA (TWA) または Capacitor でAndroidアプリ化が可能です。手順を確認。
-                </div>
-              </div>
-              <span style="font-size: 1.5rem;">📱</span>
-            </div>
-
             <!-- Stats -->
             <div class="system-section">
               <h3 class="sys-title">📊 演算統計ログ</h3>
@@ -396,10 +390,6 @@ export class GameUI {
       });
     }
 
-    // Google Play Store Guide Modal
-    const showGuide = () => this.showPlayStoreGuideModal();
-    document.getElementById('btn-guide').addEventListener('click', showGuide);
-    document.getElementById('banner-playstore').addEventListener('click', showGuide);
   }
 
   buyAllAffordableHardwareTopDown() {
@@ -1306,35 +1296,6 @@ export class GameUI {
         });
         this.switchTab('core');
       }
-    });
-  }
-
-  showPlayStoreGuideModal() {
-    const modalContainer = document.getElementById('modal-container');
-    modalContainer.innerHTML = `
-      <div class="modal-overlay">
-        <div class="modal-card">
-          <h2 class="modal-title">📱 Google Play Store 配信ガイド</h2>
-          <div class="modal-content">
-            本ゲームはPWA（Progressive Web Apps）およびモバイル最適化（タッチ対応・触覚振動・マニフェスト完備）されており、以下の手順でGoogle Play Storeに配信できます：<br><br>
-            <strong>方法1: Bubblewrap (TWA: 公式推奨)</strong><br>
-            ・Google公式のTrusted Web Activityツール。<br>
-            ・WebサイトをそのままAndroidアプリ(AAB)としてパッケージ化。<br>
-            <code>npx @bubblewrap/cli init --manifest=https://your-domain.com/manifest.webmanifest</code><br>
-            <code>npx @bubblewrap/cli build</code><br><br>
-            <strong>方法2: Capacitor (ネイティブ拡張)</strong><br>
-            ・オフライン完全対応、Google AdMobやIn-App Billing (課金) 連携に最適。<br>
-            <code>npm install @capacitor/core @capacitor/cli @capacitor/android</code><br>
-            <code>npx cap init</code><br>
-            <code>npm run build && npx cap add android && npx cap open android</code>
-          </div>
-          <button class="modal-close-btn" id="btn-close-guide">閉じる</button>
-        </div>
-      </div>
-    `;
-
-    document.getElementById('btn-close-guide').addEventListener('click', () => {
-      modalContainer.innerHTML = '';
     });
   }
 
