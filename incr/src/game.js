@@ -1,0 +1,662 @@
+import {
+  HARDWARE_DEFS,
+  UPGRADE_DEFS,
+  ACHIEVEMENTS,
+  getHardwareCost,
+  getBulkCost,
+  getMaxAffordable,
+  calcPrestigeCores,
+  PRESTIGE_REQ_FLOPS
+} from './constants.js';
+import { sound } from './audio.js';
+
+const SAVE_KEY = 'cyber_protocol_save_v1';
+
+export class Game {
+  constructor(callbacks = {}) {
+    this.callbacks = callbacks; // onLog, onAchievement, onStateChange, etc.
+    this.resetState();
+    this.glitchTimer = 0;
+    this.activeGlitch = null;
+    this.autoSaveInterval = 5000; // 5s
+    this.lastTick = performance.now();
+    this.saveTimer = performance.now();
+  }
+
+  resetState() {
+    this.flops = 0;
+    this.totalFlopsEarned = 0;
+    this.totalClicks = 0;
+
+    // Overclock mechanics
+    this.heat = 0; // 0 to 100
+    this.isOverclocked = false;
+    this.overclockTimeRemaining = 0;
+    this.overclockMaxTime = 10; // seconds
+    this.overclockMultiplierBonus = 3.0;
+
+    // Multipliers & Bonuses
+    this.clickBase = 1;
+    this.clickMult = 1.0;
+    this.clickCpsRatio = 0.0;
+    this.critChance = 0.05;
+    this.critMultiplier = 7.0;
+    this.globalCpsMultiplier = 1.0;
+    this.offlineEfficiency = 0.5;
+
+    // Prestige
+    this.aiCores = 0;
+    this.prestigeCount = 0;
+
+    // Inventories
+    this.hardware = {};
+    this.hardwareMultipliers = {};
+    HARDWARE_DEFS.forEach((h) => {
+      this.hardware[h.id] = 0;
+      this.hardwareMultipliers[h.id] = 1.0;
+    });
+
+    this.unlockedUpgrades = new Set();
+    this.unlockedAchievements = new Set();
+    this.totalGlitchHacks = 0;
+    this.lastAllHardwareMilestone = 0;
+    this.lastSavedTime = Date.now();
+    this.isGameCleared = false;
+    this.clearTime = null;
+    this.gameStartTime = this.gameStartTime || Date.now();
+  }
+
+  // Calculate Hardware Milestone multiplier: every 25 units owned doubles its output
+  getMilestoneMultiplier(count) {
+    const milestones = Math.floor(count / 25);
+    return Math.pow(2, milestones);
+  }
+
+  // Calculate Base CPS for a specific hardware
+  getHardwareItemCps(hardwareDef) {
+    const count = this.hardware[hardwareDef.id] || 0;
+    if (count === 0) return 0;
+    const upgradeMult = this.hardwareMultipliers[hardwareDef.id] || 1.0;
+    const milestoneMult = this.getMilestoneMultiplier(count);
+    return hardwareDef.baseCps * count * upgradeMult * milestoneMult;
+  }
+
+  // Total CPS calculation
+  getCps() {
+    let rawCps = 0;
+    for (const h of HARDWARE_DEFS) {
+      rawCps += this.getHardwareItemCps(h);
+    }
+
+    // AI Core Prestige Bonus (each core gives +5%)
+    const aiCoreBonus = 1 + this.aiCores * 0.05;
+
+    // Global multiplier
+    let total = rawCps * this.globalCpsMultiplier * aiCoreBonus;
+
+    // Overclock Multiplier
+    if (this.isOverclocked) {
+      total *= this.overclockMultiplierBonus;
+    }
+
+    return total;
+  }
+
+  // Click Value calculation
+  getClickValue() {
+    const aiCoreBonus = 1 + this.aiCores * 0.05;
+    const fromCps = this.getCps() * this.clickCpsRatio;
+    let base = (this.clickBase * this.clickMult + fromCps) * aiCoreBonus;
+
+    if (this.isOverclocked) {
+      base *= this.overclockMultiplierBonus;
+    }
+
+    return Math.max(1, base);
+  }
+
+  // Manual Click / Tap handler
+  manualClick(x, y) {
+    this.totalClicks++;
+    sound.init();
+
+    // Check Critical
+    const isCrit = Math.random() < this.critChance;
+    let earned = this.getClickValue();
+    if (isCrit) {
+      earned *= this.critMultiplier;
+      sound.playCrit();
+    } else {
+      sound.playClick();
+    }
+
+    this.flops += earned;
+    this.totalFlopsEarned += earned;
+
+    // Heat & Overclock building
+    if (!this.isOverclocked) {
+      this.heat = Math.min(100, this.heat + 5);
+      if (this.heat >= 100) {
+        this.triggerOverclock();
+      }
+    }
+
+    // Check click-related achievements
+    this.checkAchievements();
+
+    return { earned, isCrit };
+  }
+
+  triggerOverclock() {
+    this.isOverclocked = true;
+    this.overclockTimeRemaining = this.overclockMaxTime;
+    this.heat = 100;
+    sound.playOverclock();
+    if (this.callbacks.onLog) {
+      this.callbacks.onLog('⚡ OVERCLOCK ACTIVATED! 演算出力が一時的に急増！', 'critical');
+    }
+    if (this.callbacks.onOverclockStart) {
+      this.callbacks.onOverclockStart();
+    }
+  }
+
+  // Hardware Purchase
+  buyHardware(hardwareId, amountMode = '1', silent = false) {
+    const def = HARDWARE_DEFS.find((h) => h.id === hardwareId);
+    if (!def) return false;
+
+    const currentCount = this.hardware[hardwareId] || 0;
+    let amountToBuy = 1;
+    let cost = 0;
+
+    if (amountMode === '1') {
+      amountToBuy = 1;
+      cost = getHardwareCost(def, currentCount);
+    } else if (amountMode === '10') {
+      amountToBuy = 10;
+      cost = getBulkCost(def, currentCount, 10);
+    } else if (amountMode === 'max') {
+      const maxInfo = getMaxAffordable(def, currentCount, this.flops);
+      if (!maxInfo.affordable) return false;
+      amountToBuy = maxInfo.count;
+      cost = maxInfo.cost;
+    }
+
+    if (amountToBuy <= 0 || this.flops < cost) {
+      return false;
+    }
+
+    this.flops -= cost;
+    this.hardware[hardwareId] = currentCount + amountToBuy;
+    if (!silent) {
+      sound.playBuy();
+    }
+
+    if (this.callbacks.onLog && !silent) {
+      this.callbacks.onLog(`[ACQUIRED] ${def.name} x${amountToBuy} を配備完了。`, 'success');
+    }
+
+    this.checkAchievements();
+    this.checkAllHardwareMilestone();
+    this.checkGameClear();
+    return true;
+  }
+
+  // Upgrade Purchase
+  buyUpgrade(upgradeId, silent = false) {
+    const def = UPGRADE_DEFS.find((u) => u.id === upgradeId);
+    if (!def || this.unlockedUpgrades.has(upgradeId)) return false;
+
+    if (this.flops < def.cost) return false;
+
+    this.flops -= def.cost;
+    this.unlockedUpgrades.add(upgradeId);
+    def.apply(this);
+    if (!silent) {
+      sound.playBuy();
+    }
+
+    if (this.callbacks.onLog && !silent) {
+      this.callbacks.onLog(`[PROTOCOL ACTIVATED] ${def.name} の展開に成功。`, 'success');
+    }
+
+    this.checkAchievements();
+    return true;
+  }
+
+  checkAllHardwareMilestone() {
+    const counts = HARDWARE_DEFS.map((h) => this.hardware[h.id] || 0);
+    const minCount = Math.min(...counts);
+    const currentMilestone = Math.floor(minCount / 1000) * 1000;
+
+    if (currentMilestone >= 1000 && currentMilestone > (this.lastAllHardwareMilestone || 0)) {
+      this.lastAllHardwareMilestone = currentMilestone;
+      if (this.callbacks.onAllHardwareMilestone) {
+        this.callbacks.onAllHardwareMilestone(currentMilestone);
+      }
+    }
+  }
+
+  // Game Clear: All 14 Facilities reached 10,000 units
+  checkGameClear() {
+    if (this.isGameCleared) return;
+
+    const counts = HARDWARE_DEFS.map((h) => this.hardware[h.id] || 0);
+    const minCount = Math.min(...counts);
+
+    if (minCount >= 10000) {
+      this.isGameCleared = true;
+      this.clearTime = Date.now();
+      this.save();
+      this.checkAchievements();
+
+      if (this.callbacks.onGameClear) {
+        this.callbacks.onGameClear(this.getGameClearStats());
+      }
+    }
+  }
+
+  getGameClearStats() {
+    const counts = HARDWARE_DEFS.map((h) => this.hardware[h.id] || 0);
+    return {
+      clearTime: this.clearTime || Date.now(),
+      startTime: this.gameStartTime || (Date.now() - 3600000),
+      totalFlops: this.totalFlopsEarned,
+      totalClicks: this.totalClicks,
+      aiCores: this.aiCores,
+      prestigeCount: this.prestigeCount,
+      totalGlitchHacks: this.totalGlitchHacks || 0,
+      upgradesCount: this.unlockedUpgrades.size,
+      totalHardware: counts.reduce((a, b) => a + b, 0)
+    };
+  }
+
+  // Glitch Node Click
+  hackGlitch(glitchId) {
+    if (!this.activeGlitch || this.activeGlitch.id !== glitchId) return 0;
+
+    const bonus = Math.max(100, Math.floor(this.getCps() * 25 + this.getClickValue() * 50));
+    this.flops += bonus;
+    this.totalFlopsEarned += bonus;
+    this.totalGlitchHacks = (this.totalGlitchHacks || 0) + 1;
+    sound.playCrit();
+
+    if (this.callbacks.onLog) {
+      this.callbacks.onLog(`[BREACH SUCCESS] 脆弱性パケット奪取! +${bonus} FLOPS!`, 'glitch');
+    }
+
+    this.activeGlitch = null;
+    this.checkAchievements();
+    return bonus;
+  }
+
+  // Prestige Reboot
+  canPrestige() {
+    return this.totalFlopsEarned >= PRESTIGE_REQ_FLOPS;
+  }
+
+  getPendingPrestigeCores() {
+    const totalPotential = calcPrestigeCores(this.totalFlopsEarned);
+    return Math.max(0, totalPotential - this.aiCores);
+  }
+
+  rebootPrestige() {
+    const newCores = this.getPendingPrestigeCores();
+    if (newCores <= 0) return false;
+
+    this.aiCores += newCores;
+    this.prestigeCount++;
+
+    // Reset progress
+    this.flops = 0;
+    this.heat = 0;
+    this.isOverclocked = false;
+    this.overclockTimeRemaining = 0;
+    this.clickMult = 1.0;
+    this.clickCpsRatio = 0.0;
+    this.critChance = 0.05;
+    this.critMultiplier = 7.0;
+    this.globalCpsMultiplier = 1.0;
+    this.offlineEfficiency = 0.5;
+
+    HARDWARE_DEFS.forEach((h) => {
+      this.hardware[h.id] = 0;
+      this.hardwareMultipliers[h.id] = 1.0;
+    });
+
+    this.unlockedUpgrades.clear();
+    sound.playPrestige();
+
+    if (this.callbacks.onLog) {
+      this.callbacks.onLog(`💥 [QUANTUM SINGULARITY REBOOT] AIコア +${newCores} 覚醒完了! 全システム初期化。`, 'critical');
+    }
+
+    this.save();
+    this.checkAchievements();
+    return true;
+  }
+
+  // Achievements
+  checkAchievements() {
+    let newlyUnlocked = [];
+
+    for (const ach of ACHIEVEMENTS) {
+      if (this.unlockedAchievements.has(ach.id)) continue;
+      let unlocked = false;
+
+      switch (ach.id) {
+        case 'first_hack':
+          if (this.totalClicks >= 1) unlocked = true;
+          break;
+        case 'click_100':
+          if (this.totalClicks >= 100) unlocked = true;
+          break;
+        case 'click_1000':
+          if (this.totalClicks >= 1000) unlocked = true;
+          break;
+        case 'click_5000':
+          if (this.totalClicks >= 5000) unlocked = true;
+          break;
+        case 'flops_1k':
+          if (this.totalFlopsEarned >= 1000) unlocked = true;
+          break;
+        case 'flops_1m':
+          if (this.totalFlopsEarned >= 1000000) unlocked = true;
+          break;
+        case 'flops_1b':
+          if (this.totalFlopsEarned >= 1000000000) unlocked = true;
+          break;
+        case 'flops_1t':
+          if (this.totalFlopsEarned >= 1000000000000) unlocked = true;
+          break;
+        case 'flops_1qa':
+          if (this.totalFlopsEarned >= 1000000000000000) unlocked = true;
+          break;
+        case 'flops_1sx':
+          if (this.totalFlopsEarned >= 1e21) unlocked = true;
+          break;
+        case 'nodes_10': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 10) unlocked = true;
+          break;
+        }
+        case 'nodes_50': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 50) unlocked = true;
+          break;
+        }
+        case 'nodes_100': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 100) unlocked = true;
+          break;
+        }
+        case 'nodes_250': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 250) unlocked = true;
+          break;
+        }
+        case 'nodes_500': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 500) unlocked = true;
+          break;
+        }
+        case 'nodes_1000': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 1000) unlocked = true;
+          break;
+        }
+        case 'nodes_2000': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 2000) unlocked = true;
+          break;
+        }
+        case 'nodes_5000': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 5000) unlocked = true;
+          break;
+        }
+        case 'nodes_10000': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 10000) unlocked = true;
+          break;
+        }
+        case 'nodes_25000': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 25000) unlocked = true;
+          break;
+        }
+        case 'nodes_50000': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 50000) unlocked = true;
+          break;
+        }
+        case 'nodes_100000': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 100000) unlocked = true;
+          break;
+        }
+        case 'nodes_140000': {
+          const totalNodes = Object.values(this.hardware).reduce((a, b) => a + b, 0);
+          if (totalNodes >= 140000) unlocked = true;
+          break;
+        }
+        case 'first_overclock':
+          if (this.isOverclocked) unlocked = true;
+          break;
+        case 'glitch_hunter':
+          if ((this.totalGlitchHacks || 0) >= 1) unlocked = true;
+          break;
+        case 'first_reboot':
+          if (this.prestigeCount >= 1) unlocked = true;
+          break;
+        case 'cores_10':
+          if (this.aiCores >= 10) unlocked = true;
+          break;
+        case 'cores_100':
+          if (this.aiCores >= 100) unlocked = true;
+          break;
+        case 'cores_1000':
+          if (this.aiCores >= 1000) unlocked = true;
+          break;
+        case 'game_clear_10k':
+          if (this.isGameCleared || Math.min(...HARDWARE_DEFS.map((h) => this.hardware[h.id] || 0)) >= 10000) {
+            unlocked = true;
+          }
+          break;
+      }
+
+      if (unlocked) {
+        this.unlockedAchievements.add(ach.id);
+        newlyUnlocked.push(ach);
+        if (this.callbacks.onAchievement) {
+          this.callbacks.onAchievement(ach);
+        }
+      }
+    }
+  }
+
+  // Core Game Loop Tick
+  tick(now) {
+    const dt = Math.min((now - this.lastTick) / 1000, 1.0); // clamp max dt to 1s to prevent huge jumps
+    this.lastTick = now;
+
+    // Passive CPS production
+    const cps = this.getCps();
+    const produced = cps * dt;
+    this.flops += produced;
+    this.totalFlopsEarned += produced;
+
+    // Heat & Overclock countdown
+    if (this.isOverclocked) {
+      this.overclockTimeRemaining -= dt;
+      this.heat = Math.max(0, (this.overclockTimeRemaining / this.overclockMaxTime) * 100);
+      if (this.overclockTimeRemaining <= 0) {
+        this.isOverclocked = false;
+        this.heat = 0;
+        if (this.callbacks.onLog) {
+          this.callbacks.onLog('システム冷却完了。標準クロックに復帰。', 'info');
+        }
+      }
+    } else {
+      // Natural heat decay
+      if (this.heat > 0) {
+        this.heat = Math.max(0, this.heat - dt * 12);
+      }
+    }
+
+    // Glitch Event Spawning
+    this.glitchTimer += dt;
+    if (!this.activeGlitch && this.glitchTimer > 35) {
+      // Every 35-60s, 30% chance per second
+      if (Math.random() < dt * 0.15) {
+        this.spawnGlitch();
+        this.glitchTimer = 0;
+      }
+    } else if (this.activeGlitch) {
+      this.activeGlitch.life -= dt;
+      if (this.activeGlitch.life <= 0) {
+        this.activeGlitch = null;
+      }
+    }
+
+    // Auto-save check
+    if (now - this.saveTimer > this.autoSaveInterval) {
+      this.save();
+      this.saveTimer = now;
+    }
+  }
+
+  spawnGlitch() {
+    this.activeGlitch = {
+      id: Date.now().toString(),
+      x: 10 + Math.random() * 80, // % from left
+      y: 20 + Math.random() * 60, // % from top
+      life: 8.0 // seconds to tap
+    };
+    sound.playGlitch();
+    if (this.callbacks.onGlitchSpawn) {
+      this.callbacks.onGlitchSpawn(this.activeGlitch);
+    }
+  }
+
+  // Save / Load / Export / Import
+  save() {
+    this.lastSavedTime = Date.now();
+    const data = {
+      version: 1,
+      flops: this.flops,
+      totalFlopsEarned: this.totalFlopsEarned,
+      totalClicks: this.totalClicks,
+      aiCores: this.aiCores,
+      prestigeCount: this.prestigeCount,
+      totalGlitchHacks: this.totalGlitchHacks || 0,
+      lastAllHardwareMilestone: this.lastAllHardwareMilestone || 0,
+      isGameCleared: this.isGameCleared || false,
+      clearTime: this.clearTime || null,
+      gameStartTime: this.gameStartTime || Date.now(),
+      hardware: this.hardware,
+      unlockedUpgrades: Array.from(this.unlockedUpgrades),
+      unlockedAchievements: Array.from(this.unlockedAchievements),
+      lastSavedTime: this.lastSavedTime
+    };
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      if (this.callbacks.onSave) {
+        this.callbacks.onSave(this.lastSavedTime);
+      }
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
+    }
+  }
+
+  load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+
+      this.flops = data.flops || 0;
+      this.totalFlopsEarned = data.totalFlopsEarned || 0;
+      this.totalClicks = data.totalClicks || 0;
+      this.aiCores = data.aiCores || 0;
+      this.prestigeCount = data.prestigeCount || 0;
+      this.totalGlitchHacks = data.totalGlitchHacks || 0;
+      this.lastAllHardwareMilestone = data.lastAllHardwareMilestone || 0;
+      this.isGameCleared = data.isGameCleared || false;
+      this.clearTime = data.clearTime || null;
+      this.gameStartTime = data.gameStartTime || Date.now();
+
+      if (data.hardware) {
+        HARDWARE_DEFS.forEach((h) => {
+          this.hardware[h.id] = data.hardware[h.id] || 0;
+        });
+      }
+
+      this.unlockedUpgrades.clear();
+      if (Array.isArray(data.unlockedUpgrades)) {
+        data.unlockedUpgrades.forEach((id) => {
+          this.unlockedUpgrades.add(id);
+          const def = UPGRADE_DEFS.find((u) => u.id === id);
+          if (def) def.apply(this);
+        });
+      }
+
+      this.unlockedAchievements.clear();
+      if (Array.isArray(data.unlockedAchievements)) {
+        data.unlockedAchievements.forEach((id) => {
+          this.unlockedAchievements.add(id);
+        });
+      }
+
+      this.checkGameClear();
+
+      // Offline progress calculation
+      let offlineResult = null;
+      if (data.lastSavedTime) {
+        const offlineSeconds = Math.min(86400, Math.floor((Date.now() - data.lastSavedTime) / 1000));
+        if (offlineSeconds > 10) {
+          const baseCps = this.getCps();
+          const earned = baseCps * offlineSeconds * this.offlineEfficiency;
+          if (earned > 0) {
+            this.flops += earned;
+            this.totalFlopsEarned += earned;
+            offlineResult = {
+              seconds: offlineSeconds,
+              earned
+            };
+          }
+        }
+      }
+
+      return offlineResult;
+    } catch (e) {
+      console.error('Failed to load save:', e);
+      return null;
+    }
+  }
+
+  exportSave() {
+    this.save();
+    const raw = localStorage.getItem(SAVE_KEY);
+    return btoa(encodeURIComponent(raw || ''));
+  }
+
+  importSave(encodedStr) {
+    try {
+      const decoded = decodeURIComponent(atob(encodedStr.trim()));
+      const parsed = JSON.parse(decoded);
+      if (!parsed.version) throw new Error('Invalid save');
+      localStorage.setItem(SAVE_KEY, decoded);
+      window.location.reload();
+      return true;
+    } catch (e) {
+      alert('セーブデータの形式が不正です。');
+      return false;
+    }
+  }
+
+  wipeSave() {
+    localStorage.removeItem(SAVE_KEY);
+    window.location.reload();
+  }
+}
