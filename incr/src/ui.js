@@ -390,6 +390,23 @@ export class GameUI {
       });
     }
 
+    // Global Modal Backdrop Click & Escape Dismiss
+    const modalContainer = document.getElementById('modal-container');
+    if (modalContainer) {
+      modalContainer.addEventListener('click', (e) => {
+        if (e.target && e.target.classList.contains('modal-overlay')) {
+          modalContainer.innerHTML = '';
+          sound.playBuy();
+        }
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modalContainer && modalContainer.children.length > 0) {
+        modalContainer.innerHTML = '';
+        sound.playBuy();
+      }
+    });
   }
 
   buyAllAffordableHardwareTopDown() {
@@ -444,7 +461,7 @@ export class GameUI {
         break; // Cannot afford even the cheapest one
       }
 
-      this.game.flops -= cheapestCost;
+      this.game.flops = Math.max(0, (isFinite(this.game.flops) ? this.game.flops : 0) - cheapestCost);
       this.game.hardware[cheapestHw.id] = (this.game.hardware[cheapestHw.id] || 0) + 1;
       totalBought++;
     }
@@ -860,8 +877,9 @@ export class GameUI {
     if (!modalContainer) return;
 
     modalContainer.innerHTML = `
-      <div class="modal-overlay">
+      <div class="modal-overlay" id="modal-overlay-milestone">
         <div class="modal-card milestone-celebration-card">
+          <button class="modal-header-close-btn" id="btn-header-close-milestone" aria-label="閉じる">✕</button>
           <div class="milestone-badge-glow">🌌</div>
           <h2 class="milestone-title-text">OMNI-HARDWARE SINGULARITY</h2>
           <div class="milestone-sub-banner">全演算設備 極限同期達成</div>
@@ -881,10 +899,21 @@ export class GameUI {
       </div>
     `;
 
-    document.getElementById('btn-close-milestone').addEventListener('click', () => {
+    const closeMilestone = () => {
       modalContainer.innerHTML = '';
       sound.playBuy();
-    });
+    };
+
+    document.getElementById('btn-close-milestone').addEventListener('click', closeMilestone);
+    const headerBtn = document.getElementById('btn-header-close-milestone');
+    if (headerBtn) headerBtn.addEventListener('click', closeMilestone);
+
+    const overlay = document.getElementById('modal-overlay-milestone');
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeMilestone();
+      });
+    }
   }
 
   // Grand Finale Game Clear Celebration (All 14 Facilities reached 10,000)
@@ -968,14 +997,15 @@ export class GameUI {
       `#CyberProtocol #GameClear`;
 
     modalContainer.innerHTML = `
-      <div class="modal-overlay">
+      <div class="modal-overlay" id="modal-overlay-game-clear">
         <div class="modal-card game-clear-modal-card">
+          <button class="modal-header-close-btn" id="btn-header-close-clear" aria-label="閉じる">✕</button>
           <div class="game-clear-crown">👑</div>
           <div class="game-clear-ribbon">★ GAME COMPLETE ★</div>
           <h2 class="game-clear-title">全施設 10,000台 完全制覇</h2>
           <div class="game-clear-subtitle">THE OMNIPOTENT SINGULARITY AWAKENED</div>
 
-          <div class="modal-content" style="max-height: 55vh; overflow-y: auto;">
+          <div class="modal-content">
             <p class="game-clear-story">
               スクリプト・ボットの初バイト侵入から始まったあなたのハッキングは、
               オメガ特異点・神格化AIコアに至る全14系統・計140,000基の演算インフラを完全に掌握しました。<br><br>
@@ -1039,10 +1069,21 @@ export class GameUI {
       });
     }
 
-    document.getElementById('btn-close-clear').addEventListener('click', () => {
+    const closeClearModal = () => {
       modalContainer.innerHTML = '';
       sound.playBuy();
-    });
+    };
+
+    document.getElementById('btn-close-clear').addEventListener('click', closeClearModal);
+    const headerClose = document.getElementById('btn-header-close-clear');
+    if (headerClose) headerClose.addEventListener('click', closeClearModal);
+
+    const overlay = document.getElementById('modal-overlay-game-clear');
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeClearModal();
+      });
+    }
   }
 
   showOfflineModal(offlineData) {

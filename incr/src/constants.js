@@ -12,16 +12,22 @@ export function toSuperscript(num) {
 
 export function formatNumber(num, decimals = 2) {
   if (num === null || num === undefined || isNaN(num)) return '0';
+  if (!isFinite(num)) return '∞';
+  if (num <= 0) return '0';
   if (num < 1000) return num.toLocaleString('en-US', { maximumFractionDigits: decimals });
 
   const exp = Math.floor(Math.log10(num) / 3) * 3;
+  if (!isFinite(exp) || exp < 0) return '0';
   const val = num / Math.pow(10, exp);
+  if (!isFinite(val) || isNaN(val)) return '∞';
   const formattedVal = val.toFixed(val >= 100 ? 0 : (val >= 10 ? 1 : decimals));
   return `${formattedVal}×10${toSuperscript(exp)}`;
 }
 
 export function formatCores(cores) {
   if (cores === null || cores === undefined || isNaN(cores)) return '0';
+  if (!isFinite(cores)) return '∞';
+  if (cores <= 0) return '0';
   if (cores < 1000000) {
     return Math.floor(cores).toLocaleString();
   }
@@ -2086,13 +2092,14 @@ export const ACHIEVEMENTS = [
 // Calculate cost for N-th hardware (smooth scaling up to 10,000+ units)
 export function getHardwareCost(hardwareDef, currentCount) {
   if (currentCount <= 2000) {
-    return Math.floor(hardwareDef.baseCost * Math.pow(hardwareDef.costMult, currentCount));
+    const rawCost = hardwareDef.baseCost * Math.pow(hardwareDef.costMult, currentCount);
+    return Math.min(1e305, Math.floor(isFinite(rawCost) ? rawCost : 1e305));
   }
   // Softened exponential scaling beyond 2000 units to comfortably support up to 10,000+ units within IEEE 754 limits
   const costAt2000 = hardwareDef.baseCost * Math.pow(hardwareDef.costMult, 2000);
-  const excess = currentCount - 2000;
+  const excess = Math.min(15000, currentCount - 2000);
   const cost = costAt2000 * Math.pow(1.045, excess);
-  return Math.min(1e305, Math.floor(cost));
+  return Math.min(1e305, Math.floor(isFinite(cost) ? cost : 1e305));
 }
 
 // Calculate cost to buy amount
@@ -2100,18 +2107,25 @@ export function getBulkCost(hardwareDef, currentCount, amount) {
   const r = currentCount >= 2000 ? 1.045 : hardwareDef.costMult;
   const firstCost = getHardwareCost(hardwareDef, currentCount);
   if (amount === 10) {
-    const cost = Math.floor(firstCost * (Math.pow(r, 10) - 1) / (r - 1));
-    return Math.min(1e305, cost);
+    const pow10 = Math.pow(r, 10);
+    const cost = isFinite(pow10) ? Math.floor(firstCost * (pow10 - 1) / (r - 1)) : 1e305;
+    return Math.min(1e305, isFinite(cost) ? cost : 1e305);
   }
   let total = 0;
   for (let i = 0; i < amount; i++) {
     total += getHardwareCost(hardwareDef, currentCount + i);
+    if (!isFinite(total) || total >= 1e305) return 1e305;
   }
   return Math.min(1e305, total);
 }
 
 // Calculate maximum affordable using geometric series formula
 export function getMaxAffordable(hardwareDef, currentCount, flops) {
+  if (!isFinite(flops) || isNaN(flops) || flops <= 0) {
+    const nextCost = getHardwareCost(hardwareDef, currentCount);
+    return { count: 1, cost: nextCost, affordable: false };
+  }
+
   const nextCost = getHardwareCost(hardwareDef, currentCount);
   if (flops < nextCost) {
     // Cannot afford any, display next 1 unit cost
@@ -2120,16 +2134,36 @@ export function getMaxAffordable(hardwareDef, currentCount, flops) {
 
   const r = currentCount >= 2000 ? 1.045 : hardwareDef.costMult;
   // m = floor( ln(1 + (flops * (r - 1)) / nextCost) / ln(r) )
-  let maxCount = Math.floor(Math.log(1 + (flops * (r - 1)) / nextCost) / Math.log(r));
-  let count = Math.max(1, maxCount);
-  let cost = Math.floor(nextCost * (Math.pow(r, count) - 1) / (r - 1));
+  const ratio = (flops * (r - 1)) / nextCost;
+  let maxCount = Math.floor(Math.log(1 + Math.min(1e300, ratio)) / Math.log(r));
+  let count = Math.max(1, Math.min(15000, isFinite(maxCount) ? maxCount : 1));
 
-  while (cost > flops && count > 1) {
-    count--;
-    cost = Math.floor(nextCost * (Math.pow(r, count) - 1) / (r - 1));
+  const calcCost = (c) => {
+    const powR = Math.pow(r, c);
+    if (!isFinite(powR)) return 1e305;
+    const res = Math.floor(nextCost * (powR - 1) / (r - 1));
+    return isFinite(res) ? res : 1e305;
+  };
+
+  let cost = calcCost(count);
+
+  // Fast binary step-down if cost > flops
+  if (cost > flops && count > 1) {
+    let low = 1;
+    let high = count;
+    while (low < high) {
+      const mid = Math.floor((low + high + 1) / 2);
+      if (calcCost(mid) <= flops) {
+        low = mid;
+      } else {
+        high = mid - 1;
+      }
+    }
+    count = low;
+    cost = calcCost(count);
   }
 
-  if (cost > flops) {
+  if (cost > flops || !isFinite(cost)) {
     return { count: 1, cost: nextCost, affordable: false };
   }
 
@@ -2140,7 +2174,19 @@ export function getMaxAffordable(hardwareDef, currentCount, flops) {
 export const PRESTIGE_REQ_FLOPS = 1000000; // 1M FLOPS required for 1st core
 
 export function calcPrestigeCores(totalFlops) {
-  if (totalFlops < PRESTIGE_REQ_FLOPS) return 0;
-  // Cube root progression: Every scale gives more cores
-  return Math.floor(Math.cbrt(totalFlops / PRESTIGE_REQ_FLOPS) * 1.5);
+  if (!totalFlops || isNaN(totalFlops) || totalFlops < PRESTIGE_REQ_FLOPS || !isFinite(totalFlops)) {
+    if (!isFinite(totalFlops) && totalFlops > 0) return 2000000;
+    return 0;
+  }
+  // Up to 1e15 FLOPS (1 Quadrillion): exact cube root progression (1 to 1,500 cores)
+  // Perfectly matches all existing achievements (cores_10, cores_100, cores_1000)
+  if (totalFlops <= 1e15) {
+    return Math.floor(Math.cbrt(totalFlops / PRESTIGE_REQ_FLOPS) * 1.5);
+  }
+  // Beyond 1e15, progressive logarithmic growth so AI Cores scale smoothly up to ~1.5 million
+  // without exponential runaway that overflows IEEE 754 limits
+  const baseCores = 1500;
+  const extraLog = Math.log10(totalFlops / 1e15);
+  const extraCores = Math.floor(Math.pow(extraLog, 1.8) * 150);
+  return Math.min(1e7, baseCores + extraCores);
 }

@@ -955,20 +955,28 @@ body {
 /* Modals */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
-  height: 100vh;
-  background: rgba(4, 5, 10, 0.85);
+  height: 100%;
+  min-height: 100dvh;
+  background: rgba(4, 5, 10, 0.88);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 16px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 .modal-card {
+  margin: auto;
   background: #0d111d;
   border: 1px solid var(--color-cyan);
   border-radius: 16px;
@@ -979,8 +987,39 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: 90vh;
-  overflow-y: auto;
+  position: relative;
+  touch-action: pan-y;
+  max-height: none;
+  overflow: visible;
+}
+
+.modal-header-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-main);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 10;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.modal-header-close-btn:hover,
+.modal-header-close-btn:active {
+  background: rgba(255, 0, 127, 0.4);
+  border-color: var(--color-magenta);
+  color: #fff;
+  transform: scale(1.08);
 }
 
 .modal-title {
@@ -1329,5 +1368,50 @@ body {
   font-size: 0.95rem;
   font-weight: 700;
   color: #ffe600;
+}
+
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: 12px 10px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  .modal-card {
+    padding: 18px 12px;
+    margin: 8px auto;
+    border-radius: 14px;
+    gap: 10px;
+  }
+  .game-clear-modal-card {
+    padding: 20px 12px 16px !important;
+  }
+  .game-clear-crown {
+    font-size: 2.8rem;
+    margin-bottom: 0px;
+  }
+  .game-clear-title {
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+  }
+  .game-clear-subtitle {
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .game-clear-story {
+    font-size: 0.78rem;
+    padding: 10px 12px;
+    margin: 8px 0;
+  }
+  .clear-stats-grid {
+    gap: 6px;
+    margin: 10px 0;
+  }
+  .clear-stat-box {
+    padding: 6px 6px;
+  }
+  .clear-stat-val {
+    font-size: 0.85rem;
+  }
 }
 

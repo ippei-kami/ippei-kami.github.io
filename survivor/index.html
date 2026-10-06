@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VOID SURVIVOR: 無限深淵サバイバー</title>
+  <meta name="description" content="群がる数千の敵を技術で捌き、武器を進化させて無双するローグライク・アクションサバイバー。">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=M+PLUS+1p:wght@500;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Game Canvas Stage -->
+  <div id="canvas-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <!-- HUD Overlay -->
+  <div class="hud-overlay">
+    <!-- Top HUD: EXP Gauge & Info -->
+    <div class="top-hud">
+      <div class="exp-bar-wrapper">
+        <div id="exp-bar-fill" class="exp-bar-fill"></div>
+      </div>
+      <div class="top-stats-row">
+        <div class="stat-pill">
+          <span id="level-display" class="level-badge">Lv.1</span>
+        </div>
+        <div class="stat-pill">
+          <span id="timer-display" class="time-pill">00:00</span>
+        </div>
+        <div class="stat-pill">
+          <span id="kills-display" style="color: #f87171;">💀 0</span>
+        </div>
+        <div class="stat-pill">
+          <span id="cores-display" style="color: #a855f7;">💎 0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom HUD: HP, Dash, Controls -->
+    <div class="bottom-hud">
+      <!-- Player HP & Dash Info -->
+      <div class="player-status-box">
+        <div class="hp-bar-wrap">
+          <div class="bar-label-group">
+            <span style="color: #ef4444;">HP</span>
+            <span id="hp-text">100 / 100</span>
+          </div>
+          <div class="hp-bar-bg">
+            <div id="hp-bar-fill" class="hp-bar-fill"></div>
+          </div>
+        </div>
+
+        <div class="hp-bar-wrap">
+          <div class="bar-label-group">
+            <span style="color: #38bdf8;">緊急ダッシュ (Space)</span>
+          </div>
+          <div class="dash-bar-bg">
+            <div id="dash-bar-fill" class="dash-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons & Toggles -->
+      <div class="hud-actions">
+        <button id="dash-btn-ui" class="dash-trigger-btn" title="緊急回避ダッシュ (無敵フレーム)">
+          💨
+          <span>DASH</span>
+        </button>
+        <button id="control-mode-btn" class="btn">🕹️ 操作: キーボード (WASD)</button>
+        <button id="shop-btn-ui" class="btn btn-gold">🌌 魔核強化</button>
+        <button id="bgm-toggle" class="btn btn-sm">🎵 BGM: ON</button>
+        <button id="sfx-toggle" class="btn btn-sm">🔊 SE: ON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Box -->
+  <div id="toast-box"></div>
+
+  <!-- 1. Level Up Modal (Skill Draft) -->
+  <div id="levelup-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" style="color: #38bdf8;">⚡ LEVEL UP ! スキル習得</div>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+          技術と立ち回りを支える武装またはパッシブスキルを1つ選択してください。
+        </p>
+        <div id="levelup-cards-container" class="levelup-cards-container">
+          <!-- Options injected here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Chest Modal (Weapon Evolution / Rewards) -->
+  <div id="chest-modal" class="modal-overlay">
+    <div class="modal-card" style="text-align: center; max-width: 500px;">
+      <div class="modal-body" style="align-items: center;">
+        <div id="chest-reward-content">
+          <!-- Injected reward info -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center;">
+        <button id="chest-claim-btn" class="btn btn-gold" style="padding: 10px 24px;">受け取る</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Meta Shop Modal (Soul/Dark Core upgrades) -->
+  <div id="meta-shop-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">🌌 深淵の魔核（永続ステータス強化）</div>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="meta-cores-balance" style="font-size: 1.25rem; font-weight: 800; color: #a855f7;">所持魔核: 0 コア</span>
+            <button id="shop-reset-btn" class="btn btn-sm" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);">🔄 全額リセット(振り直し)</button>
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">
+            敵の撃破や生存時間、宝箱から獲得した魔核で永続強化！いつでも全額払い戻して自由に再ビルド可能。
+          </div>
+        </div>
+        <div id="meta-shop-items" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Shop items -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button id="shop-close-btn" class="btn">閉じる</button>
+        <button id="shop-restart-btn" class="btn btn-primary">⚔️ 強化を完了して出撃（再挑戦）</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Game Over Modal -->
+  <div id="game-over-modal" class="modal-overlay">
+    <div class="modal-card" style="text-align: center; max-width: 500px;">
+      <div class="modal-header" style="justify-content: center;">
+        <div class="modal-title" style="color: #ef4444; font-size: 1.5rem;">💀 DEFEATED - 敗北</div>
+      </div>
+      <div class="modal-body" style="align-items: center;">
+        <div style="font-size: 4rem;">🪦</div>
+        <h3>深淵の闇に呑まれました…</h3>
+        <div style="background: rgba(0,0,0,0.4); border-radius: 12px; padding: 14px; width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 6px;">
+          <div id="go-time" style="font-size: 1.1rem; font-weight: bold; color: #38bdf8;">生存時間: 00:00</div>
+          <div id="go-kills" style="color: #f87171;">撃破数: 0 体</div>
+          <div id="go-cores" style="color: #a855f7; font-weight: bold;">獲得魔核: +0 コア</div>
+          <div id="go-total-cores" style="color: #fbbf24;">所持魔核: 0 コア</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center; gap: 12px;">
+        <button id="go-shop-btn" class="btn btn-gold">🌌 魔核強化へ</button>
+        <button id="go-retry-btn" class="btn btn-primary">🔄 再挑戦する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Pause Modal -->
+  <div id="pause-modal" class="modal-overlay">
+    <div class="modal-card" style="text-align: center; max-width: 400px;">
+      <div class="modal-header" style="justify-content: center;">
+        <div class="modal-title">⏸️ 一時停止中</div>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+          操作ヒント:<br>
+          ・<strong>WASD / 矢印キー</strong>: 移動<br>
+          ・<strong>Spaceキー</strong>: 緊急ダッシュ（無敵回避）<br>
+          ・<strong>Escキー</strong>: 一時停止/再開
+        </p>
+      </div>
+      <div class="modal-footer" style="justify-content: center;">
+        <button id="resume-btn" class="btn btn-primary">ゲーム再開</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="audio.js"></script>
+  <script src="data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
