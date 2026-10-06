@@ -2177,5 +2177,5 @@ export function calcPrestigeCores(totalFlops) {
   if (!totalFlops || isNaN(totalFlops) || totalFlops < PRESTIGE_REQ_FLOPS) return 0;
   // Cube root progression: Every scale gives more cores (original formula)
   const cores = Math.floor(Math.cbrt(totalFlops / PRESTIGE_REQ_FLOPS) * 1.5);
-  return Math.min(1e100, isFinite(cores) ? cores : 1e100);
+  return Math.min(1e300, isFinite(cores) ? cores : 1e300);
 }

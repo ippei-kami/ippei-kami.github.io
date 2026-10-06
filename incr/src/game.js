@@ -6,9 +6,16 @@ import {
   getBulkCost,
   getMaxAffordable,
   calcPrestigeCores,
-  PRESTIGE_REQ_FLOPS
+  PRESTIGE_REQ_FLOPS,
+  formatCores
 } from './constants.js';
 import { sound } from './audio.js';
+
+function safeClamp(val, fallback = 0, max = 1e305) {
+  if (isNaN(val)) return fallback;
+  if (!Number.isFinite(val) || val >= max) return max;
+  return Math.max(fallback, val);
+}
 
 const SAVE_KEY = 'cyber_protocol_save_v1';
 
@@ -26,6 +33,7 @@ export class Game {
   resetState() {
     this.flops = 0;
     this.totalFlopsEarned = 0;
+    this.runFlopsEarned = 0;
     this.totalClicks = 0;
 
     // Overclock mechanics
@@ -80,7 +88,7 @@ export class Game {
     const upgradeMult = this.hardwareMultipliers[hardwareDef.id] || 1.0;
     const milestoneMult = this.getMilestoneMultiplier(count);
     const itemCps = hardwareDef.baseCps * count * upgradeMult * milestoneMult;
-    return Math.min(1e305, isFinite(itemCps) ? itemCps : 0);
+    return safeClamp(itemCps, 0);
   }
 
   // Total CPS calculation
@@ -89,9 +97,10 @@ export class Game {
     for (const h of HARDWARE_DEFS) {
       rawCps += this.getHardwareItemCps(h);
     }
+    rawCps = safeClamp(rawCps, 0);
 
     // AI Core Prestige Bonus (each core gives +5%)
-    const safeCores = (isFinite(this.aiCores) && this.aiCores > 0) ? this.aiCores : 0;
+    const safeCores = (Number.isFinite(this.aiCores) && this.aiCores > 0) ? this.aiCores : 0;
     const aiCoreBonus = 1 + safeCores * 0.05;
 
     // Global multiplier
@@ -102,12 +111,12 @@ export class Game {
       total *= this.overclockMultiplierBonus;
     }
 
-    return Math.min(1e305, isFinite(total) ? Math.max(0, total) : 0);
+    return safeClamp(total, 0);
   }
 
   // Click Value calculation (Original powerful formula!)
   getClickValue() {
-    const safeCores = (isFinite(this.aiCores) && this.aiCores > 0) ? this.aiCores : 0;
+    const safeCores = (Number.isFinite(this.aiCores) && this.aiCores > 0) ? this.aiCores : 0;
     const aiCoreBonus = 1 + safeCores * 0.05;
     const fromCps = this.getCps() * this.clickCpsRatio;
     let base = (this.clickBase * this.clickMult + fromCps) * aiCoreBonus;
@@ -116,7 +125,7 @@ export class Game {
       base *= this.overclockMultiplierBonus;
     }
 
-    return Math.max(1, Math.min(1e305, isFinite(base) ? base : 1));
+    return safeClamp(base, 1);
   }
 
   // Manual Click / Tap handler
@@ -134,9 +143,10 @@ export class Game {
       sound.playClick();
     }
 
-    earned = Math.min(1e305, isFinite(earned) ? Math.max(1, earned) : 1);
-    this.flops = Math.min(1e305, Math.max(0, (isFinite(this.flops) ? this.flops : 0) + earned));
-    this.totalFlopsEarned = Math.min(1e305, Math.max(0, (isFinite(this.totalFlopsEarned) ? this.totalFlopsEarned : 0) + earned));
+    earned = safeClamp(earned, 1);
+    this.flops = safeClamp((this.flops || 0) + earned, 0);
+    this.totalFlopsEarned = safeClamp((this.totalFlopsEarned || 0) + earned, 0);
+    this.runFlopsEarned = safeClamp((this.runFlopsEarned || 0) + earned, 0);
 
     // Heat & Overclock building
     if (!this.isOverclocked) {
@@ -281,9 +291,10 @@ export class Game {
     if (!this.activeGlitch || this.activeGlitch.id !== glitchId) return 0;
 
     const rawBonus = Math.floor(this.getCps() * 25 + this.getClickValue() * 50);
-    const bonus = Math.max(100, Math.min(1e305, isFinite(rawBonus) ? rawBonus : 100));
-    this.flops = Math.min(1e305, Math.max(0, (isFinite(this.flops) ? this.flops : 0) + bonus));
-    this.totalFlopsEarned = Math.min(1e305, Math.max(0, (isFinite(this.totalFlopsEarned) ? this.totalFlopsEarned : 0) + bonus));
+    const bonus = safeClamp(rawBonus, 100);
+    this.flops = safeClamp((this.flops || 0) + bonus, 0);
+    this.totalFlopsEarned = safeClamp((this.totalFlopsEarned || 0) + bonus, 0);
+    this.runFlopsEarned = safeClamp((this.runFlopsEarned || 0) + bonus, 0);
     this.totalGlitchHacks = (this.totalGlitchHacks || 0) + 1;
     sound.playCrit();
 
@@ -298,25 +309,53 @@ export class Game {
 
   // Prestige Reboot
   canPrestige() {
-    return isFinite(this.totalFlopsEarned) && this.totalFlopsEarned >= PRESTIGE_REQ_FLOPS;
+    const runFlops = Math.max(
+      Number.isFinite(this.runFlopsEarned) ? this.runFlopsEarned : 0,
+      Number.isFinite(this.flops) ? this.flops : 0
+    );
+    const totalFlops = Number.isFinite(this.totalFlopsEarned) ? this.totalFlopsEarned : 0;
+    return runFlops >= PRESTIGE_REQ_FLOPS || totalFlops >= PRESTIGE_REQ_FLOPS;
   }
 
   getPendingPrestigeCores() {
-    const totalPotential = calcPrestigeCores(this.totalFlopsEarned);
-    const currentCores = isFinite(this.aiCores) && this.aiCores > 0 ? this.aiCores : 0;
-    return Math.max(0, totalPotential - currentCores);
+    const currentCores = (Number.isFinite(this.aiCores) && this.aiCores > 0) ? this.aiCores : 0;
+    const runFlops = Math.max(
+      Number.isFinite(this.runFlopsEarned) ? this.runFlopsEarned : 0,
+      Number.isFinite(this.flops) ? this.flops : 0
+    );
+    const totalFlops = Math.max(runFlops, Number.isFinite(this.totalFlopsEarned) ? this.totalFlopsEarned : 0);
+
+    // Standard run cores from current run FLOPS
+    const runCores = calcPrestigeCores(runFlops);
+
+    // Lifetime potential surplus (early game progression)
+    const lifetimePotential = calcPrestigeCores(totalFlops);
+    const lifetimeSurplus = Math.max(0, lifetimePotential - currentCores);
+
+    // Late-game scaling: ensure prestige is always rewarding even at 1e96+ cores!
+    let lateGameBonus = 0;
+    if (currentCores > 0 && runFlops >= PRESTIGE_REQ_FLOPS) {
+      // Progress from 1e6 up to 1e300+ gives 5% up to 100% of current cores
+      const runExponent = Math.log10(Math.max(1, runFlops));
+      const depthFactor = Math.min(1.0, Math.max(0.05, runExponent / 300));
+      lateGameBonus = Math.floor(currentCores * depthFactor);
+    }
+
+    const pending = Math.max(runCores, lifetimeSurplus, lateGameBonus);
+    return Math.min(1e300, Number.isFinite(pending) ? pending : 1e300);
   }
 
   rebootPrestige() {
     const newCores = this.getPendingPrestigeCores();
-    if (newCores <= 0 || !isFinite(newCores)) return false;
+    if (newCores <= 0 || !Number.isFinite(newCores)) return false;
 
-    const currentCores = isFinite(this.aiCores) && this.aiCores > 0 ? this.aiCores : 0;
-    this.aiCores = Math.min(1e100, currentCores + newCores);
+    const currentCores = (Number.isFinite(this.aiCores) && this.aiCores > 0) ? this.aiCores : 0;
+    this.aiCores = Math.min(1e300, currentCores + newCores);
     this.prestigeCount++;
 
     // Reset progress
     this.flops = 0;
+    this.runFlopsEarned = 0;
     this.heat = 0;
     this.isOverclocked = false;
     this.overclockTimeRemaining = 0;
@@ -336,7 +375,7 @@ export class Game {
     sound.playPrestige();
 
     if (this.callbacks.onLog) {
-      this.callbacks.onLog(`💥 [QUANTUM SINGULARITY REBOOT] AIコア +${newCores} 覚醒完了! 全システム初期化。`, 'critical');
+      this.callbacks.onLog(`💥 [QUANTUM SINGULARITY REBOOT] AIコア +${formatCores(newCores)} 覚醒完了! 全システム初期化。`, 'critical');
     }
 
     this.save();
@@ -490,9 +529,10 @@ export class Game {
 
     // Passive CPS production
     const cps = this.getCps();
-    const produced = isFinite(cps) && cps > 0 ? Math.min(1e305, cps * dt) : 0;
-    this.flops = Math.min(1e305, Math.max(0, (isFinite(this.flops) ? this.flops : 0) + produced));
-    this.totalFlopsEarned = Math.min(1e305, Math.max(0, (isFinite(this.totalFlopsEarned) ? this.totalFlopsEarned : 0) + produced));
+    const produced = (Number.isFinite(cps) && cps > 0) ? safeClamp(cps * dt, 0) : 0;
+    this.flops = safeClamp((this.flops || 0) + produced, 0);
+    this.totalFlopsEarned = safeClamp((this.totalFlopsEarned || 0) + produced, 0);
+    this.runFlopsEarned = safeClamp((this.runFlopsEarned || 0) + produced, 0);
 
     // Heat & Overclock countdown
     if (this.isOverclocked) {
@@ -554,6 +594,7 @@ export class Game {
       version: 1,
       flops: this.flops,
       totalFlopsEarned: this.totalFlopsEarned,
+      runFlopsEarned: this.runFlopsEarned,
       totalClicks: this.totalClicks,
       aiCores: this.aiCores,
       prestigeCount: this.prestigeCount,
@@ -609,9 +650,9 @@ export class Game {
 
       const rawTotalFlops = data.totalFlopsEarned;
       if (Number.isFinite(rawTotalFlops) && rawTotalFlops > 0) {
-        this.totalFlopsEarned = Math.min(1e305, Math.max(rawTotalFlops, minHardwareFlops));
+        this.totalFlopsEarned = safeClamp(Math.max(rawTotalFlops, minHardwareFlops), 0);
       } else {
-        this.totalFlopsEarned = minHardwareFlops;
+        this.totalFlopsEarned = safeClamp(minHardwareFlops, 0);
       }
 
       // Auto-heal corrupted AI cores from previous overflow bugs
@@ -619,10 +660,19 @@ export class Game {
       if (!Number.isFinite(rawAiCores) || rawAiCores < 0) {
         this.aiCores = calcPrestigeCores(this.totalFlopsEarned);
       } else {
-        this.aiCores = Math.min(1e100, Math.max(rawAiCores, calcPrestigeCores(this.totalFlopsEarned)));
+        this.aiCores = Math.min(1e300, Math.max(rawAiCores, calcPrestigeCores(this.totalFlopsEarned)));
       }
 
-      this.flops = Number.isFinite(data.flops) && data.flops >= 0 ? Math.min(1e305, data.flops) : 0;
+      this.flops = Number.isFinite(data.flops) && data.flops >= 0 ? safeClamp(data.flops, 0) : 0;
+
+      const rawRunFlops = data.runFlopsEarned;
+      if (Number.isFinite(rawRunFlops) && rawRunFlops > 0) {
+        this.runFlopsEarned = safeClamp(rawRunFlops, 0);
+      } else {
+        // Backwards compatibility for existing save: initialize runFlopsEarned from current flops or totalFlopsEarned
+        this.runFlopsEarned = safeClamp(Math.max(this.flops, this.totalFlopsEarned), 0);
+      }
+
       this.totalClicks = Number.isFinite(data.totalClicks) && data.totalClicks >= 0 ? data.totalClicks : 0;
       this.prestigeCount = Number.isFinite(data.prestigeCount) && data.prestigeCount >= 0 ? data.prestigeCount : 0;
       this.totalGlitchHacks = Number.isFinite(data.totalGlitchHacks) && data.totalGlitchHacks >= 0 ? data.totalGlitchHacks : 0;
@@ -651,10 +701,11 @@ export class Game {
         const offlineSeconds = Math.min(86400, Math.floor((Date.now() - data.lastSavedTime) / 1000));
         if (offlineSeconds > 10) {
           const baseCps = this.getCps();
-          const earned = isFinite(baseCps) && baseCps > 0 ? Math.min(1e305, baseCps * offlineSeconds * this.offlineEfficiency) : 0;
+          const earned = (Number.isFinite(baseCps) && baseCps > 0) ? safeClamp(baseCps * offlineSeconds * this.offlineEfficiency, 0) : 0;
           if (earned > 0) {
-            this.flops = Math.min(1e305, Math.max(0, (isFinite(this.flops) ? this.flops : 0) + earned));
-            this.totalFlopsEarned = Math.min(1e305, Math.max(0, (isFinite(this.totalFlopsEarned) ? this.totalFlopsEarned : 0) + earned));
+            this.flops = safeClamp((this.flops || 0) + earned, 0);
+            this.totalFlopsEarned = safeClamp((this.totalFlopsEarned || 0) + earned, 0);
+            this.runFlopsEarned = safeClamp((this.runFlopsEarned || 0) + earned, 0);
             offlineResult = {
               seconds: offlineSeconds,
               earned
