@@ -2174,19 +2174,8 @@ export function getMaxAffordable(hardwareDef, currentCount, flops) {
 export const PRESTIGE_REQ_FLOPS = 1000000; // 1M FLOPS required for 1st core
 
 export function calcPrestigeCores(totalFlops) {
-  if (!totalFlops || isNaN(totalFlops) || totalFlops < PRESTIGE_REQ_FLOPS || !isFinite(totalFlops)) {
-    if (!isFinite(totalFlops) && totalFlops > 0) return 2000000;
-    return 0;
-  }
-  // Up to 1e15 FLOPS (1 Quadrillion): exact cube root progression (1 to 1,500 cores)
-  // Perfectly matches all existing achievements (cores_10, cores_100, cores_1000)
-  if (totalFlops <= 1e15) {
-    return Math.floor(Math.cbrt(totalFlops / PRESTIGE_REQ_FLOPS) * 1.5);
-  }
-  // Beyond 1e15, progressive logarithmic growth so AI Cores scale smoothly up to ~1.5 million
-  // without exponential runaway that overflows IEEE 754 limits
-  const baseCores = 1500;
-  const extraLog = Math.log10(totalFlops / 1e15);
-  const extraCores = Math.floor(Math.pow(extraLog, 1.8) * 150);
-  return Math.min(1e7, baseCores + extraCores);
+  if (!totalFlops || isNaN(totalFlops) || totalFlops < PRESTIGE_REQ_FLOPS) return 0;
+  // Cube root progression: Every scale gives more cores (original formula)
+  const cores = Math.floor(Math.cbrt(totalFlops / PRESTIGE_REQ_FLOPS) * 1.5);
+  return Math.min(1e100, isFinite(cores) ? cores : 1e100);
 }

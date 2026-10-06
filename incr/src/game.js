@@ -69,14 +69,8 @@ export class Game {
   // Calculate Hardware Milestone multiplier: every 25 units owned doubles its output
   getMilestoneMultiplier(count) {
     const milestones = Math.floor(count / 25);
-    if (milestones <= 400) {
-      return Math.pow(2, milestones);
-    }
-    // Beyond 10,000 units (400 milestones), scale safely without IEEE 754 overflow
-    const baseMult = Math.pow(2, 400);
-    const extraMilestones = milestones - 400;
-    const safeMult = baseMult * (1 + extraMilestones * 0.1);
-    return Math.min(1e305, isFinite(safeMult) ? safeMult : 1e305);
+    // Double every 25 units, capped only to prevent IEEE-754 Infinity (>1020)
+    return Math.pow(2, Math.min(1000, milestones));
   }
 
   // Calculate Base CPS for a specific hardware
@@ -111,20 +105,18 @@ export class Game {
     return Math.min(1e305, isFinite(total) ? Math.max(0, total) : 0);
   }
 
-  // Click Value calculation
+  // Click Value calculation (Original powerful formula!)
   getClickValue() {
     const safeCores = (isFinite(this.aiCores) && this.aiCores > 0) ? this.aiCores : 0;
     const aiCoreBonus = 1 + safeCores * 0.05;
-    let clickBaseVal = this.clickBase * this.clickMult * aiCoreBonus;
+    const fromCps = this.getCps() * this.clickCpsRatio;
+    let base = (this.clickBase * this.clickMult + fromCps) * aiCoreBonus;
 
     if (this.isOverclocked) {
-      clickBaseVal *= this.overclockMultiplierBonus;
+      base *= this.overclockMultiplierBonus;
     }
 
-    const fromCps = this.getCps() * this.clickCpsRatio;
-    const total = clickBaseVal + fromCps;
-
-    return Math.max(1, Math.min(1e305, isFinite(total) ? total : 1));
+    return Math.max(1, Math.min(1e305, isFinite(base) ? base : 1));
   }
 
   // Manual Click / Tap handler
@@ -320,7 +312,7 @@ export class Game {
     if (newCores <= 0 || !isFinite(newCores)) return false;
 
     const currentCores = isFinite(this.aiCores) && this.aiCores > 0 ? this.aiCores : 0;
-    this.aiCores = Math.min(1e7, currentCores + newCores);
+    this.aiCores = Math.min(1e100, currentCores + newCores);
     this.prestigeCount++;
 
     // Reset progress
@@ -624,10 +616,10 @@ export class Game {
 
       // Auto-heal corrupted AI cores from previous overflow bugs
       const rawAiCores = data.aiCores;
-      if (!Number.isFinite(rawAiCores) || rawAiCores < 0 || rawAiCores > 1e7) {
+      if (!Number.isFinite(rawAiCores) || rawAiCores < 0) {
         this.aiCores = calcPrestigeCores(this.totalFlopsEarned);
       } else {
-        this.aiCores = Math.min(1e7, Math.max(rawAiCores, calcPrestigeCores(this.totalFlopsEarned)));
+        this.aiCores = Math.min(1e100, Math.max(rawAiCores, calcPrestigeCores(this.totalFlopsEarned)));
       }
 
       this.flops = Number.isFinite(data.flops) && data.flops >= 0 ? Math.min(1e305, data.flops) : 0;
