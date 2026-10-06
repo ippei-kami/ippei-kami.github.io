@@ -96,6 +96,8 @@ class VoidSurvivorGame {
   // --- Start Game Run ---
   startNewRun() {
     this.gameTime = 0;
+    this.lastEliteMin = 0;
+    this.bossSpawned = false;
     this.enemies = [];
     this.projectiles = [];
     this.gems = [];
@@ -738,17 +740,8 @@ class VoidSurvivorGame {
   spawnEnemies(dt) {
     // Dynamic spawn rate scaling by gameTime
     const minutes = this.gameTime / 60;
-    const maxEnemies = Math.min(450, 40 + Math.floor(minutes * 50));
 
-    if (this.enemies.length >= maxEnemies) return;
-
-    // Spawn interval
-    const spawnRate = Math.max(0.08, 0.6 - minutes * 0.08);
-    if (Math.random() < dt * 0.001 / spawnRate) {
-      this.spawnSingleEnemy(minutes);
-    }
-
-    // Elite spawn every 2 minutes
+    // Elite spawn every 2 minutes (2:00, 4:00, 6:00, 8:00...) - unblocked by minion cap
     if (!this.lastEliteMin || Math.floor(minutes) >= this.lastEliteMin + 2) {
       if (minutes >= 2) {
         this.lastEliteMin = Math.floor(minutes);
@@ -756,10 +749,20 @@ class VoidSurvivorGame {
       }
     }
 
-    // Boss spawn at 10 minutes
+    // Boss spawn at 10 minutes - unblocked by minion cap
     if (minutes >= 10 && !this.bossSpawned) {
       this.bossSpawned = true;
       this.spawnBoss();
+    }
+
+    // Normal minion mob cap
+    const maxEnemies = Math.min(450, 40 + Math.floor(minutes * 50));
+    if (this.enemies.length >= maxEnemies) return;
+
+    // Minion spawn interval
+    const spawnRate = Math.max(0.08, 0.6 - minutes * 0.08);
+    if (Math.random() < dt * 0.001 / spawnRate) {
+      this.spawnSingleEnemy(minutes);
     }
   }
 
