@@ -922,46 +922,53 @@
         }
       });
 
-      // Mouse Controls for PC
+      // Touch & Mouse 3-Zone Controls (Left 35% | Center 30% Tilt | Right 35%)
       const leftZone = document.getElementById('touch-zone-left');
+      const centerZone = document.getElementById('touch-zone-center');
       const rightZone = document.getElementById('touch-zone-right');
-      const tiltBtn = document.getElementById('tilt-btn');
 
       const handleTouchState = (touches) => {
         let leftActive = false;
         let rightActive = false;
+        let centerActive = false;
         const rect = this.canvas.getBoundingClientRect();
-        const tiltRect = tiltBtn.getBoundingClientRect();
 
         for (let i = 0; i < touches.length; i++) {
           const t = touches[i];
-          // Exclude touches that fall on or around the tilt button (margin: 12px)
-          if (
-            t.clientX >= tiltRect.left - 12 &&
-            t.clientX <= tiltRect.right + 12 &&
-            t.clientY >= tiltRect.top - 12 &&
-            t.clientY <= tiltRect.bottom + 12
-          ) {
-            continue;
-          }
-
           const xRatio = (t.clientX - rect.left) / rect.width;
-          if (xRatio < 0.5) leftActive = true;
-          else rightActive = true;
+          if (xRatio < 0.35) {
+            leftActive = true;
+          } else if (xRatio > 0.65) {
+            rightActive = true;
+          } else {
+            centerActive = true;
+          }
         }
 
         this.triggerLeftFlipper(leftActive);
         this.triggerRightFlipper(rightActive);
+
+        if (leftZone) {
+          if (leftActive) leftZone.classList.add('active');
+          else leftZone.classList.remove('active');
+        }
+        if (rightZone) {
+          if (rightActive) rightZone.classList.add('active');
+          else rightZone.classList.remove('active');
+        }
+        if (centerZone) {
+          if (centerActive) centerZone.classList.add('active');
+          else centerZone.classList.remove('active');
+        }
       };
 
       const touchTarget = document.getElementById('canvas-container');
 
-      // Helper to check if touch event hit interactive UI elements (modals, top buttons, tilt)
+      // Helper to check if touch event hit interactive UI elements (modals, top buttons)
       const isInteractiveUI = (e) => {
         return !!(
           e.target.closest('.modal-overlay:not(.hidden)') ||
-          e.target.closest('.top-bar') ||
-          e.target.closest('#tilt-btn')
+          e.target.closest('.top-bar')
         );
       };
 
@@ -969,6 +976,17 @@
         if (isInteractiveUI(e)) return;
         e.preventDefault();
         window.soundController.init();
+
+        // Any new touch in center 30% zone (0.35 <= x <= 0.65) triggers TILT
+        const rect = this.canvas.getBoundingClientRect();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const t = e.changedTouches[i];
+          const xRatio = (t.clientX - rect.left) / rect.width;
+          if (xRatio >= 0.35 && xRatio <= 0.65) {
+            this.triggerTilt();
+          }
+        }
+
         handleTouchState(e.touches);
       }, { passive: false });
 
@@ -990,29 +1008,32 @@
         handleTouchState(e.touches);
       }, { passive: false });
 
-      // PC Mouse down
-      leftZone.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        this.triggerLeftFlipper(true);
+      // PC Mouse support (tap zones or canvas: Left 35% / Center 30% Tilt / Right 35%)
+      touchTarget.addEventListener('mousedown', (e) => {
+        if (isInteractiveUI(e) || e.button !== 0) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const xRatio = (e.clientX - rect.left) / rect.width;
+        if (xRatio < 0.35) {
+          this.triggerLeftFlipper(true);
+          if (leftZone) leftZone.classList.add('active');
+        } else if (xRatio > 0.65) {
+          this.triggerRightFlipper(true);
+          if (rightZone) rightZone.classList.add('active');
+        } else {
+          this.triggerTilt();
+          if (centerZone) {
+            centerZone.classList.add('active');
+            setTimeout(() => centerZone.classList.remove('active'), 150);
+          }
+        }
       });
+
       window.addEventListener('mouseup', () => {
         this.triggerLeftFlipper(false);
         this.triggerRightFlipper(false);
+        if (leftZone) leftZone.classList.remove('active');
+        if (rightZone) rightZone.classList.remove('active');
       });
-      rightZone.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        this.triggerRightFlipper(true);
-      });
-
-      // Tilt Button (supports touch & click, prevents button focus)
-      const onTiltTrigger = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        if (document.activeElement) document.activeElement.blur();
-        this.triggerTilt();
-      };
-      tiltBtn.addEventListener('click', onTiltTrigger);
-      tiltBtn.addEventListener('touchstart', onTiltTrigger, { passive: false });
 
       // Mute Button
       document.getElementById('mute-btn').addEventListener('click', (e) => {

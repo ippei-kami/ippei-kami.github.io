@@ -49,18 +49,18 @@
           </div>
         </div>
 
-        <!-- Touch Controls Guide Overlay -->
+        <!-- 3-Way Touch Controls Guide (Left Flipper | TILT | Right Flipper) -->
         <div class="touch-controls">
           <div class="touch-zone left" id="touch-zone-left">
-            <div class="touch-hint-btn">◀ LEFT</div>
+            <span class="touch-hint-label">◀ LEFT</span>
+          </div>
+          <div class="touch-zone center" id="touch-zone-center">
+            <button id="tilt-btn" class="tilt-center-btn" title="画面中央タップでTILT発動">⚡ TILT</button>
           </div>
           <div class="touch-zone right" id="touch-zone-right">
-            <div class="touch-hint-btn">RIGHT ▶</div>
+            <span class="touch-hint-label">RIGHT ▶</span>
           </div>
         </div>
-
-        <!-- Dedicated Tilt Button (Always above touch zones) -->
-        <button id="tilt-btn" class="tilt-center-btn" title="台を揺らして軌道を変える">⚡ TILT (SPACE)</button>
       </div>
 
       <!-- Start Modal -->
@@ -72,7 +72,7 @@
           <div class="instruction-guide">
             <div class="guide-row">
               <span class="guide-badge mobile">📱 スマホ</span>
-              <span class="guide-text">画面の<strong>左右タップ</strong>で弾く / <strong>[⚡TILT]</strong>で揺らす</span>
+              <span class="guide-text">画面<strong>3分割タップ</strong>: 左右フリッパー / 中央<strong>[⚡TILT]</strong></span>
             </div>
             <div class="guide-row">
               <span class="guide-badge pc">💻 PC</span>
