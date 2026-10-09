@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ピンボール・サバイバー (Pinball Survivor)</title>
+  <meta name="description" content="押し寄せるモンスターの群れをフリッパーで弾き返せ！ランダム強化とエイミング技術が融合した新感覚ローグライト・ピンボール。">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=M+PLUS+1p:wght@500;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="game-wrapper">
+    <!-- Game Canvas Box -->
+    <div id="canvas-container">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- Floating Combo Notice -->
+      <div id="combo-banner" class="combo-banner">COMBO x2!</div>
+
+      <!-- HUD Overlay -->
+      <div class="hud-overlay">
+        <!-- Top HUD -->
+        <div class="top-bar">
+          <div class="exp-bar-container">
+            <div id="exp-bar-fill" class="exp-bar-fill"></div>
+          </div>
+
+          <div class="stats-row">
+            <div style="display: flex; gap: 6px;">
+              <div class="stat-chip chip-level" id="level-text">Lv.1</div>
+              <div class="stat-chip" id="wave-text" style="color: #c084fc;">WAVE 1</div>
+            </div>
+
+            <div style="display: flex; gap: 6px;">
+              <div class="stat-chip chip-hp">❤️ <span id="hp-text">100 / 100</span></div>
+              <div class="stat-chip chip-score">⭐ <span id="score-text">0</span></div>
+            </div>
+
+            <div class="top-actions">
+              <button id="mute-btn" class="icon-btn" title="ミュート切替">🔊</button>
+              <a href="../" class="icon-btn" title="トップへ戻る" style="text-decoration: none;">🏠</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Touch Controls Guide Overlay -->
+        <div class="touch-controls">
+          <div class="touch-zone left" id="touch-zone-left">
+            <div class="touch-hint-btn">◀ LEFT</div>
+          </div>
+          <div class="touch-zone right" id="touch-zone-right">
+            <div class="touch-hint-btn">RIGHT ▶</div>
+          </div>
+        </div>
+
+        <!-- Dedicated Tilt Button (Always above touch zones) -->
+        <button id="tilt-btn" class="tilt-center-btn" title="台を揺らして軌道を変える">⚡ TILT (SPACE)</button>
+      </div>
+
+      <!-- Start Modal -->
+      <div id="modal-start" class="modal-overlay">
+        <div class="modal-card">
+          <div class="modal-title">PINBALL SURVIVOR</div>
+          <div class="modal-subtitle">弾いて砕く、ネオン・ローグライト</div>
+
+          <div class="instruction-guide">
+            <div class="guide-row">
+              <span class="guide-badge mobile">📱 スマホ</span>
+              <span class="guide-text">画面の<strong>左右タップ</strong>で弾く / <strong>[⚡TILT]</strong>で揺らす</span>
+            </div>
+            <div class="guide-row">
+              <span class="guide-badge pc">💻 PC</span>
+              <span class="guide-text"><strong>[A] / [D]</strong> (または <strong>[←] / [→]</strong>) / <strong>[SPACE]</strong></span>
+            </div>
+            <div class="guide-tip">
+              ⭐ 敵を倒してEXPを集め、スキルでボールを強化！
+            </div>
+          </div>
+
+          <button id="start-btn" class="btn-primary">GAME START</button>
+        </div>
+      </div>
+
+      <!-- Level Up Selection Modal -->
+      <div id="modal-levelup" class="modal-overlay hidden">
+        <div class="modal-card">
+          <div class="modal-title" style="color: #a855f7; text-shadow: 0 0 15px #a855f7;">LEVEL UP!</div>
+          <div class="modal-subtitle">スキルを選択してボールとフリッパーを強化</div>
+          <div id="upgrade-options" class="upgrade-options-list">
+            <!-- Dynamically populated 3 choices -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Game Over Modal -->
+      <div id="modal-gameover" class="modal-overlay hidden">
+        <div class="modal-card">
+          <div class="modal-title" style="color: #ef4444; text-shadow: 0 0 15px #ef4444;">GAME OVER</div>
+          <div class="modal-subtitle">防衛ラインを突破された...</div>
+
+          <div class="instruction-guide" style="text-align: center; font-size: 14px;">
+            <p>最終スコア: <strong id="final-score-val" style="color: #facc15; font-size: 18px;">0</strong></p>
+            <p>到達ウェーブ: <strong id="final-wave-val" style="color: #38bdf8;">1</strong></p>
+            <p>到達レベル: <strong id="final-level-val" style="color: #a855f7;">1</strong></p>
+          </div>
+
+          <button id="restart-btn" class="btn-primary">RETRY</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
