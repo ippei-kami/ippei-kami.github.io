@@ -725,8 +725,9 @@
       this.expNext = 45;
       this.wave = 1;
       this.gameTime = 0;
+      this.isGameStarted = false;
       this.isGameOver = false;
-      this.isPaused = false;
+      this.isPaused = true;
       this.screenShake = 0;
 
       // Roguelite Upgrade Stats
@@ -795,7 +796,18 @@
       requestAnimationFrame(this.loop.bind(this));
     }
 
+    isModalOpen() {
+      return (
+        (this.modalStart && !this.modalStart.classList.contains('hidden')) ||
+        (this.modalLevelUp && !this.modalLevelUp.classList.contains('hidden')) ||
+        (this.modalGameOver && !this.modalGameOver.classList.contains('hidden'))
+      );
+    }
+
     start() {
+      this.isGameStarted = true;
+      this.isPaused = false;
+      this.screenShake = 0;
       if (window.soundController) {
         window.soundController.init();
         window.soundController.startBgm();
@@ -868,6 +880,21 @@
         const gameKeys = ['Space', 'KeyW', 'ArrowUp', 'ArrowLeft', 'KeyA', 'KeyZ', 'ArrowRight', 'KeyD', 'Slash'];
         if (gameKeys.includes(e.code)) {
           e.preventDefault(); // Prevent page scroll and button re-activation
+        }
+
+        // If any modal is active or game not started, do not trigger in-game flippers/tilt!
+        if (this.isModalOpen() || !this.isGameStarted) {
+          if (e.code === 'Space' || e.code === 'Enter') {
+            if (this.modalStart && !this.modalStart.classList.contains('hidden')) {
+              this.start();
+              return;
+            }
+            if (this.modalGameOver && !this.modalGameOver.classList.contains('hidden')) {
+              this.resetGame();
+              return;
+            }
+          }
+          return;
         }
 
         if (e.code === 'ArrowLeft' || e.code === 'KeyA' || e.code === 'KeyZ') {
@@ -1043,7 +1070,7 @@
     }
 
     triggerTilt() {
-      if (this.tiltCooldown > 0 || this.isGameOver || this.isPaused) return;
+      if (this.tiltCooldown > 0 || this.isGameOver || this.isPaused || !this.isGameStarted || this.isModalOpen()) return;
       this.tiltCooldown = 1.0;
       this.screenShake = 12;
       window.soundController.playTilt();
@@ -1729,6 +1756,7 @@
 
     presentUpgradeChoices() {
       this.isPaused = true;
+      this.screenShake = 0;
       this.modalLevelUp.classList.remove('hidden');
       this.upgradeOptionsContainer.innerHTML = '';
 
@@ -1779,6 +1807,8 @@
 
     gameOver() {
       this.isGameOver = true;
+      this.isPaused = true;
+      this.screenShake = 0;
       window.soundController.playExplosion();
       document.getElementById('final-score-val').textContent = this.score;
       document.getElementById('final-wave-val').textContent = this.wave;
@@ -1819,11 +1849,13 @@
       this.ctx.save();
       this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Apply Screen Shake
-      if (this.screenShake > 0) {
+      // Apply Screen Shake (only when actively playing and no modal is active)
+      if (this.screenShake > 0 && !this.isModalOpen() && !this.isPaused && this.isGameStarted) {
         const sx = (Math.random() - 0.5) * this.screenShake;
         const sy = (Math.random() - 0.5) * this.screenShake;
         this.ctx.translate(sx, sy);
+      } else {
+        this.screenShake = 0;
       }
 
       // Draw Pinball Arena Elements
