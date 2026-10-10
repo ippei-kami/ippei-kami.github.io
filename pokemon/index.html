@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4H7RPSBWNE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-4H7RPSBWNE');
+  </script>
+  <title>ポケモンタイプ相性グラフ</title>
+
+  <!-- D3.js (Graph Visualization Engine) -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <!-- Pure Vanilla Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- ========================================================================= -->
+  <!-- Top Control Bar                                                           -->
+  <!-- ========================================================================= -->
+  <header class="top-header">
+    <div class="header-container">
+      <!-- Title & Logo -->
+      <div class="logo-area">
+        <div class="logo-icon">ポ</div>
+        <h1 class="header-title">ポケモンタイプ相性グラフ</h1>
+      </div>
+
+      <!-- Controls -->
+      <div class="header-controls">
+        <!-- Layout Switcher (円環配置 / 自動配置) -->
+        <div class="segmented-control">
+          <button id="btn-circular" onclick="setLayout('circular')" class="segment-btn btn-layout active" title="円形に規則正しく配置">
+            円環配置
+          </button>
+          <button id="btn-force" onclick="setLayout('force')" class="segment-btn btn-layout" title="相性関係によるシミュレーション配置">
+            自動配置
+          </button>
+        </div>
+
+        <!-- Mode Switcher (単タイプ / 複合タイプ) -->
+        <div class="segmented-control">
+          <button id="btn-mode-single" onclick="setSelectionMode('single')" class="segment-btn btn-mode active" title="1つのタイプを選択">
+            単タイプ
+          </button>
+          <button id="btn-mode-dual" onclick="setSelectionMode('dual')" class="segment-btn btn-mode" title="2つのタイプを選択して複合相性を表示">
+            複合タイプ
+          </button>
+        </div>
+
+        <!-- Filter Checkboxes (赤:ばつぐん, 緑:いまひとつ, 青:むこう) -->
+        <div class="filter-box">
+          <label class="filter-label filter-super">
+            <input type="checkbox" id="chk-super" checked onchange="toggleFilter('super')" class="filter-checkbox">
+            ばつぐん
+          </label>
+          <span class="filter-divider">|</span>
+          <label class="filter-label filter-notvery">
+            <input type="checkbox" id="chk-notvery" checked onchange="toggleFilter('notvery')" class="filter-checkbox">
+            いまひとつ
+          </label>
+          <span class="filter-divider">|</span>
+          <label class="filter-label filter-immune">
+            <input type="checkbox" id="chk-immune" checked onchange="toggleFilter('immune')" class="filter-checkbox">
+            むこう
+          </label>
+        </div>
+
+        <!-- Guide & Legend Toggle Checkbox -->
+        <label class="btn-action toggle-label" title="凡例と操作方法の表示/非表示を切り替え">
+          <input type="checkbox" id="chk-guide" checked onchange="toggleGuide()" class="filter-checkbox">
+          <span>📖 凡例</span>
+        </label>
+
+        <!-- Reset Button -->
+        <button onclick="resetAll()" class="btn-action" title="選択とノード位置を初期状態にリセット">
+          リセット
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- Quick Type Selector Ribbon                                                -->
+  <!-- ========================================================================= -->
+  <div class="quick-type-ribbon custom-scrollbar">
+    <div id="quick-types-container" class="ribbon-container">
+      <!-- Generated dynamically by app.js -->
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- Main Graph Viewport                                                       -->
+  <!-- ========================================================================= -->
+  <main class="main-viewport">
+    <svg id="network-svg"></svg>
+
+    <!-- Unified Legend & Guide Overlay -->
+    <div id="guide-legend" class="legend-overlay glass-panel">
+      <div class="legend-header">
+        <div class="legend-title">
+          <span>📖 凡例・操作ガイド</span>
+        </div>
+        <button onclick="toggleGuide(false)" class="legend-close-btn" title="非表示にする">
+          ✕
+        </button>
+      </div>
+
+      <!-- Arrow Legends -->
+      <div class="legend-content">
+        <!-- 1. 矢印の色 -->
+        <div class="legend-subgroup">
+          <div class="legend-section-title">【矢印の色】</div>
+          <div class="legend-item">
+            <svg width="24" height="10" viewBox="0 0 24 10" fill="none">
+              <line x1="1" y1="5" x2="16" y2="5" stroke="#f43f5e" stroke-width="2.2" stroke-linecap="round" />
+              <path d="M15 2 L22 5 L15 8 Z" fill="#f43f5e" />
+            </svg>
+            <span class="legend-color-tag tag-super">赤:</span>
+            <span>ばつぐん</span>
+          </div>
+          <div class="legend-item">
+            <svg width="24" height="10" viewBox="0 0 24 10" fill="none">
+              <line x1="1" y1="5" x2="16" y2="5" stroke="#22c55e" stroke-width="2.2" stroke-linecap="round" />
+              <path d="M15 2 L22 5 L15 8 Z" fill="#22c55e" />
+            </svg>
+            <span class="legend-color-tag tag-notvery">緑:</span>
+            <span>いまひとつ</span>
+          </div>
+          <div class="legend-item">
+            <svg width="24" height="10" viewBox="0 0 24 10" fill="none">
+              <line x1="1" y1="5" x2="16" y2="5" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" />
+              <path d="M15 2 L22 5 L15 8 Z" fill="#3b82f6" />
+            </svg>
+            <span class="legend-color-tag tag-immune">青:</span>
+            <span>むこう</span>
+          </div>
+        </div>
+
+        <!-- 2. 矢印の線 -->
+        <div class="legend-divider">
+          <div class="legend-section-title" style="margin-bottom: 6px;">【矢印の線】</div>
+          <div class="legend-lines-grid">
+            <div class="legend-line-item">
+              <svg width="24" height="10" viewBox="0 0 24 10" fill="none">
+                <line x1="1" y1="5" x2="16" y2="5" stroke="#cbd5e1" stroke-width="2.2" stroke-linecap="round" />
+                <path d="M15 2 L22 5 L15 8 Z" fill="#cbd5e1" />
+              </svg>
+              <span>実線: <strong>攻撃</strong></span>
+            </div>
+            <div class="legend-line-item">
+              <svg width="24" height="10" viewBox="0 0 24 10" fill="none">
+                <line x1="1" y1="5" x2="16" y2="5" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="round" />
+                <path d="M15 2 L22 5 L15 8 Z" fill="#cbd5e1" />
+              </svg>
+              <span>破線: <strong>被弾</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls consolidated inside legend -->
+      <div class="legend-divider guide-instructions">
+        <div class="guide-instructions-title">🎮 操作方法</div>
+        <div>• ホイール / ピンチ: 拡大縮小</div>
+        <div>• ドラッグ: 視点移動 / ノード移動</div>
+        <div>• ノード / ボタン: タイプ選択</div>
+      </div>
+    </div>
+
+    <!-- ======================================================================= -->
+    <!-- Focused Type Info Inspector (Bottom Drawer)                             -->
+    <!-- ======================================================================= -->
+    <div id="inspector-panel" class="inspector-panel glass-panel custom-scrollbar">
+      <!-- Empty Guidance State -->
+      <div id="inspector-empty" class="inspector-empty">
+        <span style="font-size: 16px;">💡</span>
+        <span>ノードまたは上のタイプボタンをクリックするとタイプ相性が表示されます</span>
+      </div>
+
+      <!-- Active Content -->
+      <div id="inspector-content" class="inspector-content hidden">
+        <!-- Top Controls & Summary Bar -->
+        <div class="inspector-top-bar">
+          <!-- Left: Current Types (Pill Badges) -->
+          <div class="inspector-selection-area">
+            <span class="inspector-label">選択中:</span>
+            <div id="inspector-badge-1" class="inspector-badge"></div>
+            <span id="inspector-plus" class="inspector-plus-sign hidden">+</span>
+            <div id="inspector-badge-2" class="inspector-badge hidden"></div>
+          </div>
+
+          <!-- Right: Clear Button -->
+          <div>
+            <button onclick="clearFocus()" class="btn-action">
+              <span>✕ 選択解除</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Results Grid (6 Balanced Classifications: 3 攻撃, 3 被弾) -->
+        <div class="results-grid">
+          <!-- Group 1: 攻撃相性 (3分類) -->
+          <div class="compat-group">
+            <div class="compat-group-header atk">
+              <span>⚔️ 攻撃相性</span>
+              <span class="compat-group-subtitle">相手に与える倍率</span>
+            </div>
+            <div class="cards-container">
+              <!-- 1. 攻撃ばつぐん -->
+              <div id="card-atk-weak" class="compat-card card-super">
+                <div class="compat-card-title">
+                  <span>⚔️ 攻撃ばつぐん</span>
+                </div>
+                <div id="inspector-atk-weak-list" class="badge-list custom-scrollbar"></div>
+              </div>
+
+              <!-- 2. 攻撃いまひとつ -->
+              <div id="card-atk-half" class="compat-card card-notvery">
+                <div class="compat-card-title">
+                  <span>🗡️ 攻撃いまひとつ</span>
+                </div>
+                <div id="inspector-atk-half-list" class="badge-list custom-scrollbar"></div>
+              </div>
+
+              <!-- 3. 攻撃むこう (0倍) -->
+              <div id="card-atk-zero" class="compat-card card-immune">
+                <div class="compat-card-title">
+                  <span>⚠️ 攻撃むこう (0倍)</span>
+                </div>
+                <div id="inspector-atk-zero-list" class="badge-list custom-scrollbar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group 2: 被弾相性 (3分類) -->
+          <div class="compat-group">
+            <div class="compat-group-header def">
+              <span>🛡️ 被弾相性（受けるダメージ）</span>
+              <span class="compat-group-subtitle">相手から受ける倍率</span>
+            </div>
+            <div class="cards-container">
+              <!-- 4. 被弾むこう (0倍) -->
+              <div id="card-def-zero" class="compat-card card-immune">
+                <div class="compat-card-title">
+                  <span>🛡️ 被弾むこう (0倍)</span>
+                </div>
+                <div id="inspector-def-zero-list" class="badge-list custom-scrollbar"></div>
+              </div>
+
+              <!-- 5. 被弾いまひとつ -->
+              <div id="card-def-half" class="compat-card card-notvery">
+                <div class="compat-card-title">
+                  <span>🙅‍♂️ 被弾いまひとつ</span>
+                </div>
+                <div id="inspector-def-half-list" class="badge-list custom-scrollbar"></div>
+              </div>
+
+              <!-- 6. 被弾ばつぐん -->
+              <div id="card-def-weak" class="compat-card card-super">
+                <div class="compat-card-title">
+                  <span>⚠️ 被弾ばつぐん</span>
+                </div>
+                <div id="inspector-def-weak-list" class="badge-list custom-scrollbar"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
