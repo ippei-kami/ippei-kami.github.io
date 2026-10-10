@@ -42,6 +42,7 @@ body {
   -webkit-user-select: none;
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -449,14 +450,16 @@ button {
    ========================================================================== */
 .inspector-panel {
   position: absolute;
-  bottom: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   left: 12px;
   right: 12px;
   border: 1px solid var(--border-panel);
   border-radius: 16px;
   padding: 14px 16px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.7);
   max-height: 50vh;
+  max-height: calc(50dvh - env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   z-index: 10;
   transition: all 0.3s ease;
@@ -692,3 +695,41 @@ button {
   background: rgba(0, 0, 0, 0.32);
   color: #ffffff;
 }
+
+/* ==========================================================================
+   7. Mobile Responsive Enhancements
+   ========================================================================== */
+@media (max-width: 640px) {
+  .top-header {
+    padding: 8px 10px;
+  }
+
+  .header-title {
+    font-size: 14px;
+  }
+
+  .logo-icon {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+
+  .inspector-panel {
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(48dvh - env(safe-area-inset-bottom, 0px));
+    border-radius: 14px;
+  }
+
+  .compat-card {
+    padding: 8px;
+  }
+
+  .badge-list {
+    max-height: 85px;
+  }
+}
+
