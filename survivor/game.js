@@ -28,7 +28,9 @@ class VoidSurvivorGame {
 
     // Input state
     this.keys = {};
-    this.mouse = { x: 0, y: 0, isDown: false };
+    this.mouse = { x: 0, y: 0, isDown: false, downTime: 0, downX: 0, downY: 0 };
+    this.mouseTarget = null;
+    this.mouseMarkers = [];
     this.controlMode = 'keyboard'; // 'keyboard' or 'mouse'
     this.initInputs();
 
@@ -105,6 +107,8 @@ class VoidSurvivorGame {
     this.pickups = [];
     this.particles = [];
     this.damageTexts = [];
+    this.mouseTarget = null;
+    this.mouseMarkers = [];
 
     const extraHp = this.getMetaBonus('hp') || 0;
     const baseHp = 100 + extraHp;
@@ -201,6 +205,7 @@ class VoidSurvivorGame {
     this.updateGems(dt);
     this.updateParticles(dt);
     this.updateDamageTexts(dt);
+    this.updateMouseMarkers(dt);
     this.spawnEnemies(dt);
 
     // Passive regeneration
@@ -240,21 +245,47 @@ class VoidSurvivorGame {
     let dx = 0;
     let dy = 0;
 
-    if (this.controlMode === 'keyboard') {
-      if (this.keys['KeyW'] || this.keys['ArrowUp']) dy -= 1;
-      if (this.keys['KeyS'] || this.keys['ArrowDown']) dy += 1;
-      if (this.keys['KeyA'] || this.keys['ArrowLeft']) dx -= 1;
-      if (this.keys['KeyD'] || this.keys['ArrowRight']) dx += 1;
-    } else {
-      // Mouse follow
+    // Keyboard keys (WASD / Arrows)
+    let hasKeyInput = false;
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) { dy -= 1; hasKeyInput = true; }
+    if (this.keys['KeyS'] || this.keys['ArrowDown']) { dy += 1; hasKeyInput = true; }
+    if (this.keys['KeyA'] || this.keys['ArrowLeft']) { dx -= 1; hasKeyInput = true; }
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) { dx += 1; hasKeyInput = true; }
+
+    if (hasKeyInput) {
+      this.mouseTarget = null; // Keyboard movement cancels clicked destination
+    } else if (this.controlMode === 'mouse') {
       const screenCenterX = this.width / 2;
       const screenCenterY = this.height / 2;
-      const mx = this.mouse.x - screenCenterX;
-      const my = this.mouse.y - screenCenterY;
-      const dist = Math.hypot(mx, my);
-      if (dist > 25) {
-        dx = mx / dist;
-        dy = my / dist;
+
+      if (this.mouse.isDown) {
+        // Holding click: continuously move in cursor direction
+        const mx = this.mouse.x - screenCenterX;
+        const my = this.mouse.y - screenCenterY;
+        const dist = Math.hypot(mx, my);
+        if (dist > 15) {
+          dx = mx / dist;
+          dy = my / dist;
+        }
+      } else if (this.mouseTarget) {
+        // Single click: move towards clicked destination
+        const tdx = this.mouseTarget.x - p.x;
+        const tdy = this.mouseTarget.y - p.y;
+        const dist = Math.hypot(tdx, tdy);
+
+        const speedPassiveBonus = this.getPassiveBonus('speed');
+        let currentSpeed = p.baseSpeed * (1 + speedPassiveBonus);
+        if (p.isDashing) currentSpeed *= 3.0;
+
+        if (dist <= Math.max(5, currentSpeed)) {
+          // Arrived at destination
+          p.x = this.mouseTarget.x;
+          p.y = this.mouseTarget.y;
+          this.mouseTarget = null;
+        } else {
+          dx = tdx / dist;
+          dy = tdy / dist;
+        }
       }
     }
 
@@ -1274,6 +1305,68 @@ class VoidSurvivorGame {
     }
   }
 
+  // --- Mouse Movement Markers & Destination Rendering ---
+  addMouseMarker(x, y) {
+    if (this.controlMode !== 'mouse') return;
+    this.mouseMarkers.push({
+      x,
+      y,
+      radius: 4,
+      maxRadius: 24,
+      life: 0.45,
+      maxLife: 0.45
+    });
+  }
+
+  updateMouseMarkers(dt) {
+    const dtSec = dt / 1000;
+    for (let i = this.mouseMarkers.length - 1; i >= 0; i--) {
+      const m = this.mouseMarkers[i];
+      m.life -= dtSec;
+      if (m.life <= 0) this.mouseMarkers.splice(i, 1);
+    }
+  }
+
+  renderMouseDestination(ctx) {
+    if (this.controlMode !== 'mouse') return;
+
+    // 1. Expanding click ripples
+    this.mouseMarkers.forEach(m => {
+      ctx.save();
+      const ratio = Math.max(0, m.life / m.maxLife);
+      const currentR = m.maxRadius - (m.maxRadius - m.radius) * ratio;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, currentR, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(56, 189, 248, ${ratio * 0.8})`;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // 2. Destination marker while moving to clicked target
+    if (this.mouseTarget && !this.mouse.isDown) {
+      ctx.save();
+      const t = performance.now() * 0.005;
+      const pulseR = 9 + Math.sin(t) * 2;
+
+      ctx.beginPath();
+      ctx.arc(this.mouseTarget.x, this.mouseTarget.y, pulseR, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+      ctx.lineWidth = 1.8;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(this.mouseTarget.x, this.mouseTarget.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
   // --- Render (Camera centered on player) ---
   render() {
     const ctx = this.ctx;
@@ -1292,6 +1385,9 @@ class VoidSurvivorGame {
 
     // Draw Grid Floor Pattern
     this.renderFloorGrid(ctx, px, py);
+
+    // Render Click / Destination Marker in mouse mode
+    this.renderMouseDestination(ctx);
 
     // Render Pickups
     this.pickups.forEach(item => {
@@ -1631,12 +1727,74 @@ class VoidSurvivorGame {
       this.mouse.y = e.clientY;
     });
 
-    window.addEventListener('mousedown', () => {
+    window.addEventListener('mousedown', (e) => {
+      // Ignore clicks on UI elements (buttons, modals, toasts, debug panel)
+      if (e.target.closest('button, .modal-card, .toast-pill, .debug-modal-card, .debug-toggle-btn')) {
+        return;
+      }
+
       this.mouse.isDown = true;
+      this.mouse.downTime = performance.now();
+      this.mouse.downX = e.clientX;
+      this.mouse.downY = e.clientY;
+      this.mouse.x = e.clientX;
+      this.mouse.y = e.clientY;
+
+      if (this.player && this.controlMode === 'mouse') {
+        const worldX = this.player.x + (e.clientX - this.width / 2);
+        const worldY = this.player.y + (e.clientY - this.height / 2);
+        this.mouseTarget = { x: worldX, y: worldY };
+        this.addMouseMarker(worldX, worldY);
+      }
     });
 
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', (e) => {
+      const holdDuration = performance.now() - (this.mouse.downTime || 0);
+      const dragDist = Math.hypot(e.clientX - (this.mouse.downX || e.clientX), e.clientY - (this.mouse.downY || e.clientY));
       this.mouse.isDown = false;
+
+      // If held for longer than a quick tap or dragged, stop moving upon release
+      if (holdDuration > 220 || dragDist > 20) {
+        this.mouseTarget = null;
+      }
+    });
+
+    // Touch support for mobile / touch devices
+    window.addEventListener('touchstart', (e) => {
+      if (e.target.closest('button, .modal-card, .toast-pill, .debug-modal-card, .debug-toggle-btn')) return;
+      if (e.touches.length > 0) {
+        const t = e.touches[0];
+        this.mouse.isDown = true;
+        this.mouse.downTime = performance.now();
+        this.mouse.downX = t.clientX;
+        this.mouse.downY = t.clientY;
+        this.mouse.x = t.clientX;
+        this.mouse.y = t.clientY;
+
+        if (this.player && this.controlMode === 'mouse') {
+          const worldX = this.player.x + (t.clientX - this.width / 2);
+          const worldY = this.player.y + (t.clientY - this.height / 2);
+          this.mouseTarget = { x: worldX, y: worldY };
+          this.addMouseMarker(worldX, worldY);
+        }
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) {
+        const t = e.touches[0];
+        this.mouse.x = t.clientX;
+        this.mouse.y = t.clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+      const holdDuration = performance.now() - (this.mouse.downTime || 0);
+      const dragDist = Math.hypot((this.mouse.x || 0) - (this.mouse.downX || 0), (this.mouse.y || 0) - (this.mouse.downY || 0));
+      this.mouse.isDown = false;
+      if (holdDuration > 220 || dragDist > 20) {
+        this.mouseTarget = null;
+      }
     });
   }
 
@@ -1648,7 +1806,8 @@ class VoidSurvivorGame {
     if (modeBtn) {
       modeBtn.addEventListener('click', () => {
         this.controlMode = this.controlMode === 'keyboard' ? 'mouse' : 'keyboard';
-        modeBtn.textContent = this.controlMode === 'keyboard' ? '🕹️ 操作: キーボード (WASD)' : '🖱️ 操作: マウス追従';
+        this.mouseTarget = null;
+        modeBtn.textContent = this.controlMode === 'keyboard' ? '🕹️ 操作: キーボード (WASD)' : '🖱️ 操作: マウス (クリック/ホールド)';
       });
     }
 
