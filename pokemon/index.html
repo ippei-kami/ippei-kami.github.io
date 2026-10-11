@@ -178,7 +178,12 @@
     <!-- ======================================================================= -->
     <!-- Focused Type Info Inspector (Bottom Drawer)                             -->
     <!-- ======================================================================= -->
-    <div id="inspector-panel" class="inspector-panel glass-panel custom-scrollbar">
+    <div id="inspector-panel" class="inspector-panel glass-panel custom-scrollbar is-empty">
+      <!-- Resize Handle Bar -->
+      <div id="inspector-resizer" class="inspector-resizer" title="ドラッグして高さを調整 / ダブルクリックで切り替え">
+        <div class="resizer-pill"></div>
+      </div>
+
       <!-- Empty Guidance State -->
       <div id="inspector-empty" class="inspector-empty">
         <span style="font-size: 16px;">💡</span>
@@ -197,8 +202,13 @@
             <div id="inspector-badge-2" class="inspector-badge hidden"></div>
           </div>
 
-          <!-- Right: Clear Button -->
-          <div>
+          <!-- Right: Size Presets & Clear Button -->
+          <div class="inspector-actions-group">
+            <div class="inspector-size-presets" role="group" aria-label="詳細画面の高さ切り替え">
+              <button type="button" class="btn-size-preset" data-size="compact" title="コンパクト (小)">小</button>
+              <button type="button" class="btn-size-preset active" data-size="default" title="標準 (中)">中</button>
+              <button type="button" class="btn-size-preset" data-size="expanded" title="広げる (大)">大</button>
+            </div>
             <button onclick="clearFocus()" class="btn-action">
               <span>✕ 選択解除</span>
             </button>
@@ -233,7 +243,7 @@
               <!-- 3. 攻撃むこう (0倍) -->
               <div id="card-atk-zero" class="compat-card card-immune">
                 <div class="compat-card-title">
-                  <span>⚠️ 攻撃むこう (0倍)</span>
+                  <span>⚠️ 攻撃むこう</span>
                 </div>
                 <div id="inspector-atk-zero-list" class="badge-list custom-scrollbar"></div>
               </div>
@@ -250,7 +260,7 @@
               <!-- 4. 被弾むこう (0倍) -->
               <div id="card-def-zero" class="compat-card card-immune">
                 <div class="compat-card-title">
-                  <span>🛡️ 被弾むこう (0倍)</span>
+                  <span>🛡️ 被弾むこう</span>
                 </div>
                 <div id="inspector-def-zero-list" class="badge-list custom-scrollbar"></div>
               </div>

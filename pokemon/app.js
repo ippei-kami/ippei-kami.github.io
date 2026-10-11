@@ -801,21 +801,37 @@ function applyFocusStyles() {
       const totalDefMult = getDefensiveMultiplier(d.id, focusedType1, focusedType2);
       const totalAtkMult = getOffensiveMultiplier(focusedType1, focusedType2, d.id);
 
-      if (totalDefMult >= 2) {
-        d3.select(this).attr('opacity', 1.0);
-        circle.attr('stroke', '#f43f5e').attr('stroke-width', totalDefMult === 4 ? 4.0 : 3.5);
-      } else if (totalDefMult === 0.5 || totalDefMult === 0.25) {
-        d3.select(this).attr('opacity', 1.0);
-        circle.attr('stroke', '#22c55e').attr('stroke-width', totalDefMult === 0.25 ? 4.0 : 3.5);
-      } else if (totalDefMult === 0) {
-        d3.select(this).attr('opacity', 1.0);
-        circle.attr('stroke', '#3b82f6').attr('stroke-width', 3.5);
-      } else if (totalAtkMult >= 2) {
-        d3.select(this).attr('opacity', 1.0);
-        circle.attr('stroke', '#f43f5e').attr('stroke-width', 3.0);
+      const hasDefRelation = totalDefMult !== 1.0;
+      const hasAtkRelation = totalAtkMult !== 1.0;
+
+      if (!hasDefRelation && !hasAtkRelation) {
+        // Completely neutral (1x both ways) - dim node
+        d3.select(this).attr('opacity', 0.20);
+        circle.attr('stroke', '#0f172a').attr('stroke-width', 1.8);
       } else {
-        d3.select(this).attr('opacity', 0.25);
-        circle.attr('stroke', '#0f172a').attr('stroke-width', 2.0);
+        // Connected interaction - fully visible
+        d3.select(this).attr('opacity', 1.0);
+
+        // 1. Immunity in either direction (0x) -> Blue
+        if (totalDefMult === 0 || totalAtkMult === 0) {
+          circle.attr('stroke', '#3b82f6').attr('stroke-width', 3.5);
+        }
+        // 2. Weakness (def >= 2x) -> Danger Red
+        else if (totalDefMult >= 2) {
+          circle.attr('stroke', '#f43f5e').attr('stroke-width', totalDefMult >= 4 ? 4.2 : 3.5);
+        }
+        // 3. Super effective (atk >= 2x) -> Advantage Rose
+        else if (totalAtkMult >= 2) {
+          circle.attr('stroke', '#fb7185').attr('stroke-width', totalAtkMult >= 4 ? 4.2 : 3.5);
+        }
+        // 4. Resistance (def <= 0.5x) -> Defense Green
+        else if (totalDefMult === 0.5 || totalDefMult === 0.25) {
+          circle.attr('stroke', '#22c55e').attr('stroke-width', totalDefMult === 0.25 ? 4.0 : 3.2);
+        }
+        // 5. Not very effective (atk <= 0.5x) -> Offense Light Green
+        else if (totalAtkMult === 0.5 || totalAtkMult === 0.25) {
+          circle.attr('stroke', '#4ade80').attr('stroke-width', totalAtkMult === 0.25 ? 3.8 : 3.0);
+        }
       }
     }
   });
@@ -871,17 +887,20 @@ function fillCard(key, list) {
 }
 
 function updateInspector() {
+  const panelEl = document.getElementById('inspector-panel');
   const emptyEl = document.getElementById('inspector-empty');
   const contentEl = document.getElementById('inspector-content');
 
   if (!focusedType1) {
     emptyEl.classList.remove('hidden');
     contentEl.classList.add('hidden');
+    if (panelEl) panelEl.classList.add('is-empty');
     return;
   }
 
   emptyEl.classList.add('hidden');
   contentEl.classList.remove('hidden');
+  if (panelEl) panelEl.classList.remove('is-empty');
 
   const t1 = TYPES.find(t => t.id === focusedType1);
   const t2 = focusedType2 ? TYPES.find(t => t.id === focusedType2) : null;
@@ -906,9 +925,8 @@ function updateInspector() {
     badge2.classList.add('hidden');
   }
 
-  // Multiplier format helper for dual types
+  // Multiplier format helper (単タイプ・複合タイプ両方で表示)
   const getMultLabel = (mult) => {
-    if (!focusedType2) return '';
     if (mult === 4) return '4倍';
     if (mult === 2) return '2倍';
     if (mult === 0.5) return '0.5倍';
@@ -1024,4 +1042,189 @@ window.addEventListener('resize', () => {
 
 window.addEventListener('DOMContentLoaded', () => {
   initGraph();
+  initInspectorResizer();
 });
+
+// ==============================================================================
+// 9. Inspector Panel Height Resizer & Presets
+// ==============================================================================
+
+const INSPECTOR_STORAGE_KEY = 'pokemon_inspector_height';
+const INSPECTOR_SIZE_KEY = 'pokemon_inspector_size_preset';
+
+const INSPECTOR_PRESETS = {
+  compact: '26%',
+  default: '40%',
+  expanded: '72%'
+};
+
+function applyInspectorSizeMode(mode) {
+  const panel = document.getElementById('inspector-panel');
+  if (!panel) return;
+  panel.classList.remove('size-compact', 'size-default', 'size-expanded');
+  panel.classList.add(`size-${mode}`);
+  updatePresetButtonStates(mode);
+}
+
+function determineModeFromHeight(pixelHeight) {
+  const panel = document.getElementById('inspector-panel');
+  const parentH = (panel && panel.parentElement) ? panel.parentElement.clientHeight : window.innerHeight;
+  const ratio = pixelHeight / parentH;
+  if (ratio < 0.33 || pixelHeight < 210) return 'compact';
+  if (ratio > 0.52 || pixelHeight > 400) return 'expanded';
+  return 'default';
+}
+
+function initInspectorResizer() {
+  const panel = document.getElementById('inspector-panel');
+  const resizer = document.getElementById('inspector-resizer');
+  if (!panel || !resizer) return;
+
+  const parentHeight = panel.parentElement ? panel.parentElement.clientHeight : window.innerHeight;
+  const isSmallScreen = window.innerWidth <= 768;
+
+  // Restore saved height or preset
+  const savedPreset = localStorage.getItem(INSPECTOR_SIZE_KEY);
+  const savedHeight = localStorage.getItem(INSPECTOR_STORAGE_KEY);
+
+  if (savedPreset && INSPECTOR_PRESETS[savedPreset]) {
+    setInspectorPreset(savedPreset, false);
+  } else if (!isSmallScreen && savedHeight && savedHeight.endsWith('px')) {
+    const numericHeight = parseInt(savedHeight, 10);
+    const maxSafeHeight = Math.floor(parentHeight - 30);
+    if (!isNaN(numericHeight) && numericHeight >= 100 && numericHeight <= maxSafeHeight) {
+      setInspectorHeight(`${numericHeight}px`, false);
+    } else {
+      setInspectorPreset('default', false);
+    }
+  } else {
+    setInspectorPreset('default', false);
+  }
+
+  // Pointer drag events for smooth 60fps resizing on both mouse and touch
+  let startY = 0;
+  let startHeight = 0;
+  let isDragging = false;
+
+  resizer.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return; // Only primary mouse button
+
+    isDragging = true;
+    startY = e.clientY;
+    startHeight = panel.getBoundingClientRect().height;
+
+    panel.classList.add('is-resizing');
+    panel.classList.remove('is-empty');
+    resizer.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  resizer.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+
+    // Dragging UP increases height, dragging DOWN decreases height
+    const deltaY = startY - e.clientY;
+    const newHeight = startHeight + deltaY;
+
+    const parentH = panel.parentElement ? panel.parentElement.clientHeight : window.innerHeight;
+    const minHeight = 90;
+    const maxHeight = Math.max(minHeight, Math.floor(parentH - 24));
+    const clampedHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
+
+    panel.style.setProperty('--inspector-height', `${clampedHeight}px`);
+    const dynamicMode = determineModeFromHeight(clampedHeight);
+    applyInspectorSizeMode(dynamicMode);
+  });
+
+  const onPointerUp = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    panel.classList.remove('is-resizing');
+
+    try {
+      resizer.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+
+    const finalHeight = panel.getBoundingClientRect().height;
+    localStorage.setItem(INSPECTOR_STORAGE_KEY, `${Math.round(finalHeight)}px`);
+    localStorage.removeItem(INSPECTOR_SIZE_KEY);
+  };
+
+  resizer.addEventListener('pointerup', onPointerUp);
+  resizer.addEventListener('pointercancel', onPointerUp);
+
+  // Double-click on handle cycles through presets: compact -> default -> expanded
+  resizer.addEventListener('dblclick', () => {
+    cycleInspectorPreset();
+  });
+
+  // Preset buttons click listeners
+  document.querySelectorAll('.btn-size-preset').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const size = btn.getAttribute('data-size');
+      if (size && INSPECTOR_PRESETS[size]) {
+        panel.classList.remove('is-empty');
+        setInspectorPreset(size, true);
+      }
+    });
+  });
+
+  // Prevent panel from clipping on window resize / orientation change
+  window.addEventListener('resize', () => {
+    const parentH = panel.parentElement ? panel.parentElement.clientHeight : window.innerHeight;
+    const currentH = panel.getBoundingClientRect().height;
+    const maxSafe = Math.max(90, Math.floor(parentH - 20));
+    if (currentH > maxSafe) {
+      panel.style.setProperty('--inspector-height', `${maxSafe}px`);
+      applyInspectorSizeMode(determineModeFromHeight(maxSafe));
+    }
+  });
+}
+
+function setInspectorHeight(heightStr, save = true) {
+  const panel = document.getElementById('inspector-panel');
+  if (!panel) return;
+  panel.style.setProperty('--inspector-height', heightStr);
+
+  const numericHeight = parseInt(heightStr, 10);
+  if (!isNaN(numericHeight)) {
+    const mode = determineModeFromHeight(numericHeight);
+    applyInspectorSizeMode(mode);
+  }
+
+  if (save) {
+    localStorage.setItem(INSPECTOR_STORAGE_KEY, heightStr);
+    localStorage.removeItem(INSPECTOR_SIZE_KEY);
+  }
+}
+
+function setInspectorPreset(presetKey, save = true) {
+  const panel = document.getElementById('inspector-panel');
+  if (!panel || !INSPECTOR_PRESETS[presetKey]) return;
+
+  panel.style.setProperty('--inspector-height', INSPECTOR_PRESETS[presetKey]);
+  applyInspectorSizeMode(presetKey);
+
+  if (save) {
+    localStorage.setItem(INSPECTOR_SIZE_KEY, presetKey);
+    localStorage.removeItem(INSPECTOR_STORAGE_KEY);
+  }
+}
+
+function cycleInspectorPreset() {
+  const currentPreset = localStorage.getItem(INSPECTOR_SIZE_KEY) || 'default';
+  const cycleOrder = ['compact', 'default', 'expanded'];
+  const nextIdx = (cycleOrder.indexOf(currentPreset) + 1) % cycleOrder.length;
+  setInspectorPreset(cycleOrder[nextIdx], true);
+}
+
+function updatePresetButtonStates(activePresetKey) {
+  document.querySelectorAll('.btn-size-preset').forEach(btn => {
+    if (activePresetKey && btn.getAttribute('data-size') === activePresetKey) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
