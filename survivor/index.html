@@ -8,14 +8,15 @@
   <script>window.dataLayer = window.dataLayer || []; function gtag() { dataLayer.push(arguments); } gtag('js', new Date()); gtag('config', 'G-4H7RPSBWNE');</script>
   <title>VOID SURVIVOR: 無限深淵サバイバー</title>
   <meta name="description" content="群がる数千の敵を技術で捌き、武器を進化させて無双するローグライク・アクションサバイバー。">
-  
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=M+PLUS+1p:wght@500;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-  
+
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
   <!-- Game Canvas Stage -->
@@ -185,6 +186,148 @@
       </div>
       <div class="modal-footer" style="justify-content: center;">
         <button id="resume-btn" class="btn btn-primary">ゲーム再開</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Debug Floating Trigger Button -->
+  <button id="debug-toggle-btn" class="debug-toggle-btn" style="display: none;" title="デバッグメニューを開閉 (F2 / Shift+D)">
+    <span class="debug-btn-icon">🛠️</span>
+    <span class="debug-btn-text">DEBUG</span>
+  </button>
+
+  <!-- 7. Debug Console Modal -->
+  <div id="debug-modal" class="modal-overlay">
+    <div class="modal-card debug-modal-card">
+      <div class="modal-header">
+        <div class="modal-title" style="color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+          <span>🛠️ VOID SURVIVOR // DEBUG CONSOLE</span>
+        </div>
+        <button id="debug-modal-close" class="modal-close">&times;</button>
+      </div>
+
+      <div class="debug-tabs-bar">
+        <button class="debug-tab-btn active" data-tab="weapons">⚔️ 武器</button>
+        <button class="debug-tab-btn" data-tab="passives">🛡️ パッシブ</button>
+        <button class="debug-tab-btn" data-tab="meta">🌌 メタ永続強化</button>
+        <button class="debug-tab-btn" data-tab="tools">⚡ チート & ツール</button>
+      </div>
+
+      <div class="modal-body debug-modal-body">
+        <!-- Tab 1: Weapons -->
+        <div id="debug-tab-weapons" class="debug-tab-pane active">
+          <div class="debug-quick-bar">
+            <button id="dbg-weapons-evolve-all" class="btn btn-sm btn-gold">🌟 全武器 究極進化</button>
+            <button id="dbg-weapons-max-all" class="btn btn-sm btn-primary">⚡ 全武器 Lv.5</button>
+            <button id="dbg-weapons-clear-all" class="btn btn-sm" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);">❌ 全武器 解除</button>
+          </div>
+          <div id="debug-weapons-list" class="debug-items-list">
+            <!-- Weapon items dynamically rendered -->
+          </div>
+        </div>
+
+        <!-- Tab 2: Passives -->
+        <div id="debug-tab-passives" class="debug-tab-pane">
+          <div class="debug-quick-bar">
+            <button id="dbg-passives-max-all" class="btn btn-sm btn-primary">⚡ 全パッシブ Lv.5</button>
+            <button id="dbg-passives-clear-all" class="btn btn-sm" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);">❌ 全解除</button>
+          </div>
+          <div id="debug-passives-list" class="debug-items-list">
+            <!-- Passive items dynamically rendered -->
+          </div>
+        </div>
+
+        <!-- Tab 3: Meta Upgrades -->
+        <div id="debug-tab-meta" class="debug-tab-pane">
+          <div class="debug-quick-bar">
+            <button id="dbg-meta-max-all" class="btn btn-sm btn-gold">👑 メタ全MAX</button>
+            <button id="dbg-meta-add-cores" class="btn btn-sm btn-primary">💎 魔核 +10,000</button>
+            <button id="dbg-meta-reset-all" class="btn btn-sm" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);">🔄 リセット</button>
+          </div>
+          <div id="debug-meta-list" class="debug-items-list">
+            <!-- Meta items dynamically rendered -->
+          </div>
+        </div>
+
+        <!-- Tab 4: Tools & Cheats -->
+        <div id="debug-tab-tools" class="debug-tab-pane">
+          <div class="debug-tools-grid">
+            <div class="debug-tool-card">
+              <div class="debug-tool-header">
+                <span class="debug-tool-title">🛡️ 無敵モード (God Mode)</span>
+                <button id="dbg-god-toggle-btn" class="btn btn-sm">OFF</button>
+              </div>
+              <p class="debug-tool-desc">敵からの接触ダメージや即死を完全に無効化します。</p>
+            </div>
+
+            <div class="debug-tool-card">
+              <div class="debug-tool-header">
+                <span class="debug-tool-title">💖 HP全回復</span>
+                <button id="dbg-heal-btn" class="btn btn-sm btn-primary">即時回復</button>
+              </div>
+              <p class="debug-tool-desc">プレイヤーのHPを最大値まで瞬時に満タンにします。</p>
+            </div>
+
+            <div class="debug-tool-card">
+              <div class="debug-tool-header">
+                <span class="debug-tool-title">⚡ プレイヤーレベル</span>
+                <div style="display: flex; gap: 4px;">
+                  <button id="dbg-lvl-down" class="btn btn-sm">-1</button>
+                  <button id="dbg-lvl-up" class="btn btn-sm btn-primary">+1</button>
+                  <button id="dbg-lvl-up10" class="btn btn-sm btn-gold">+10</button>
+                </div>
+              </div>
+              <p class="debug-tool-desc">現在のプレイヤーLvを即時昇格/変更します。</p>
+            </div>
+
+            <div class="debug-tool-card">
+              <div class="debug-tool-header">
+                <span class="debug-tool-title">📜 レベルアップ選択</span>
+                <button id="dbg-trigger-lvlup" class="btn btn-sm btn-gold">画面を開く</button>
+              </div>
+              <p class="debug-tool-desc">通常のレベルアップ3択ドラフトモーダルを強制表示します。</p>
+            </div>
+
+            <div class="debug-tool-card">
+              <div class="debug-tool-header">
+                <span class="debug-tool-title">🎁 宝箱召喚</span>
+                <button id="dbg-spawn-chest" class="btn btn-sm btn-gold">足元に出現</button>
+              </div>
+              <p class="debug-tool-desc">進化判定付きの報酬宝箱をプレイヤー足元に出現させます。</p>
+            </div>
+
+            <div class="debug-tool-card">
+              <div class="debug-tool-header">
+                <span class="debug-tool-title">💣 画面全滅</span>
+                <button id="dbg-nuke-btn" class="btn btn-sm" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);">敵全滅</button>
+              </div>
+              <p class="debug-tool-desc">現在画面内にいるすべての敵を一撃消滅させます。</p>
+            </div>
+
+            <div class="debug-tool-card">
+              <div class="debug-tool-header">
+                <span class="debug-tool-title">👹 ボス召喚</span>
+                <button id="dbg-spawn-boss" class="btn btn-sm" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);">死神降臨</button>
+              </div>
+              <p class="debug-tool-desc">最終ボス【虚無の死神】を即座に出現させます。</p>
+            </div>
+
+            <div class="debug-tool-card">
+              <div class="debug-tool-header">
+                <span class="debug-tool-title">💨 ダッシュCTリセット</span>
+                <button id="dbg-reset-dash" class="btn btn-sm btn-primary">即再使用可</button>
+              </div>
+              <p class="debug-tool-desc">緊急回避ダッシュのクールダウンを即座に0にします。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: space-between;">
+        <span style="font-size: 0.78rem; color: var(--text-muted);">
+          URLパラメータ例: <code>?all=evolve&god=1</code> または <code>?wand=5&damage=5</code>
+        </span>
+        <button id="debug-close-btn" class="btn btn-primary">閉じる</button>
       </div>
     </div>
   </div>

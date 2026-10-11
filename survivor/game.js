@@ -55,6 +55,7 @@ class VoidSurvivorGame {
       passives: {} // id -> level
     };
 
+    this.initDebug();
     this.initUI();
     this.startNewRun();
   }
@@ -155,6 +156,15 @@ class VoidSurvivorGame {
       molotov: 0,
       scythe: 0
     };
+
+    // Apply URL parameters if in debug mode
+    if (this.isDebug) {
+      this.applyDebugParams();
+    }
+    this.recalculatePlayerStats();
+    if (this.updateDebugUI) {
+      this.updateDebugUI();
+    }
 
     this.isRunning = true;
     this.isPaused = false;
@@ -873,6 +883,7 @@ class VoidSurvivorGame {
   }
 
   hurtPlayer(damage) {
+    if (this.godMode) return;
     this.player.hp -= damage;
     this.player.invincible = true;
     this.audio.playPlayerHurt();
@@ -1041,12 +1052,16 @@ class VoidSurvivorGame {
     options.forEach(opt => {
       const card = document.createElement('div');
       card.className = 'levelup-card';
+      const isBonus = opt.type === 'bonus';
+      const lvlText = isBonus ? '★ BONUS (即時効果)' : `Lv.${opt.currentLvl + 1}`;
+      const btnText = isBonus ? '効果を獲得' : '習得 / 強化';
+
       card.innerHTML = `
         <div class="lvl-card-icon">${opt.icon}</div>
         <div class="lvl-card-title">${opt.name}</div>
-        <div class="lvl-card-lvl">Lv.${opt.currentLvl + 1}</div>
+        <div class="lvl-card-lvl" style="${isBonus ? 'color: #38bdf8;' : ''}">${lvlText}</div>
         <div class="lvl-card-desc">${opt.desc}</div>
-        <button class="btn btn-gold lvl-pick-btn">習得 / 強化</button>
+        <button class="btn btn-gold lvl-pick-btn">${btnText}</button>
       `;
 
       card.querySelector('.lvl-pick-btn').addEventListener('click', () => {
@@ -1066,6 +1081,9 @@ class VoidSurvivorGame {
 
     // Weapons
     Object.values(this.data.WEAPONS_DATA).forEach(w => {
+      // If the weapon is already evolved, do not offer base weapon again!
+      if (w.evolution && this.stats.weapons[w.evolution]) return;
+
       const cur = this.stats.weapons[w.id] || 0;
       if (cur < w.maxLevel) {
         available.push({
@@ -1623,6 +1641,8 @@ class VoidSurvivorGame {
   }
 
   initUI() {
+    this.initDebugUI();
+
     // Control Mode Switcher (Keyboard vs Mouse)
     const modeBtn = document.getElementById('control-mode-btn');
     if (modeBtn) {
@@ -1712,6 +1732,702 @@ class VoidSurvivorGame {
       this.isPaused = false;
       document.getElementById('pause-modal').classList.remove('active');
     });
+  }
+
+  // =========================================================================
+  // --- Debug Mode & Arbitrary Upgrades System ---
+  // =========================================================================
+
+  initDebug() {
+    this.isDebug = false;
+    this.godMode = false;
+
+    const params = new URLSearchParams(window.location.search);
+    const debugParam = params.get('debug');
+    const hasDebugKey = debugParam !== null ? (debugParam !== '0' && debugParam !== 'false') : false;
+
+    const weaponKeys = ['wand', 'blades', 'lightning', 'molotov', 'scythe'];
+    const evoKeys = ['gatling', 'void_ripper', 'thunderstorm', 'inferno', 'reaper_storm'];
+    const passiveKeys = ['damage', 'cooldown', 'speed', 'area', 'magnet', 'heart', 'duration'];
+    const metaKeys = ['hp', 'regen', 'damage', 'cd', 'speed', 'dash_cd', 'dash_inv', 'magnet', 'greed', 'revive'];
+
+    const hasSpecificParams = params.has('god') || params.has('all') || params.has('evolve') ||
+      params.has('weapons') || params.has('passives') || params.has('cores') || params.has('level') ||
+      weaponKeys.some(k => params.has(k)) || evoKeys.some(k => params.has(k)) ||
+      passiveKeys.some(k => params.has(k)) || metaKeys.some(k => params.has('meta_' + k));
+
+    if (hasDebugKey || hasSpecificParams) {
+      this.isDebug = true;
+    }
+
+    // Toggle button visibility (can be suppressed with ?panel=0 or ?panel=hide)
+    const panelParam = params.get('panel');
+    const hidePanel = panelParam === '0' || panelParam === 'hide';
+    const debugBtn = document.getElementById('debug-toggle-btn');
+    if (debugBtn && this.isDebug && !hidePanel) {
+      debugBtn.style.display = 'flex';
+    }
+
+    // Hotkey listener: Shift+D or F2
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'F2' || (e.shiftKey && (e.key === 'D' || e.key === 'd'))) {
+        this.isDebug = true;
+        if (debugBtn) debugBtn.style.display = 'flex';
+        this.toggleDebugModal();
+      }
+    });
+  }
+
+  applyDebugParams() {
+    const params = new URLSearchParams(window.location.search);
+    const weaponKeys = ['wand', 'blades', 'lightning', 'molotov', 'scythe'];
+    const evoKeys = ['gatling', 'void_ripper', 'thunderstorm', 'inferno', 'reaper_storm'];
+    const passiveKeys = ['damage', 'cooldown', 'speed', 'area', 'magnet', 'heart', 'duration'];
+    const metaKeys = ['hp', 'regen', 'damage', 'cd', 'speed', 'dash_cd', 'dash_inv', 'magnet', 'greed', 'revive'];
+
+    const weaponsParam = params.get('weapons');
+    const passivesParam = params.get('passives');
+    const allParam = params.get('all');
+    const evolveParam = params.get('evolve');
+
+    // If explicit weapon presets are specified, clear default wand first
+    if (weaponsParam || allParam === 'max' || allParam === 'evolve' || evolveParam === 'all' || evolveParam === '1' || params.get('max') === '1') {
+      this.stats.weapons = {};
+    }
+
+    // 1. Presets: all=max, max=1
+    if (allParam === 'max' || params.get('max') === '1') {
+      weaponKeys.forEach(k => this.setWeaponLevel(k, 5, false));
+      passiveKeys.forEach(k => this.setPassiveLevel(k, 5, false));
+    }
+
+    // 2. Presets: all=evolve, evolve=all, evolve=1
+    if (allParam === 'evolve' || evolveParam === 'all' || evolveParam === '1') {
+      evoKeys.forEach(k => this.setWeaponLevel(k, 1, false));
+      passiveKeys.forEach(k => this.setPassiveLevel(k, 5, false));
+    }
+
+    // 3. weapons parameter, e.g. weapons=all:5 or weapons=wand:5,lightning:3
+    if (weaponsParam) {
+      if (weaponsParam.startsWith('all:')) {
+        const lvl = parseInt(weaponsParam.split(':')[1], 10) || 5;
+        weaponKeys.forEach(k => this.setWeaponLevel(k, lvl, false));
+      } else {
+        weaponsParam.split(',').forEach(pair => {
+          const [w, l] = pair.split(':');
+          if (w) this.setWeaponLevel(w.trim(), parseInt(l, 10) || 1, false);
+        });
+      }
+    }
+
+    // 4. passives parameter, e.g. passives=all:5 or passives=damage:5,speed:3
+    if (passivesParam) {
+      if (passivesParam.startsWith('all:')) {
+        const lvl = parseInt(passivesParam.split(':')[1], 10) || 5;
+        passiveKeys.forEach(k => this.setPassiveLevel(k, lvl, false));
+      } else {
+        passivesParam.split(',').forEach(pair => {
+          const [p, l] = pair.split(':');
+          if (p) this.setPassiveLevel(p.trim(), parseInt(l, 10) || 1, false);
+        });
+      }
+    }
+
+    // 5. Individual weapons
+    weaponKeys.forEach(k => {
+      if (params.has(k)) {
+        this.setWeaponLevel(k, parseInt(params.get(k), 10), false);
+      }
+    });
+
+    // 6. Individual evolved weapons
+    evoKeys.forEach(k => {
+      if (params.has(k)) {
+        this.setWeaponLevel(k, parseInt(params.get(k), 10), false);
+      }
+    });
+
+    // 7. Individual passives
+    passiveKeys.forEach(k => {
+      if (params.has(k)) {
+        this.setPassiveLevel(k, parseInt(params.get(k), 10), false);
+      }
+    });
+
+    // 8. Meta upgrades
+    if (params.get('meta') === 'max') {
+      this.data.META_UPGRADES.forEach(u => this.setMetaLevel(u.id, u.maxLevel, false));
+    }
+    metaKeys.forEach(k => {
+      if (params.has('meta_' + k)) {
+        this.setMetaLevel(k, parseInt(params.get('meta_' + k), 10), false);
+      }
+    });
+
+    // 9. God mode
+    if (params.get('god') === '1' || params.get('god') === 'true') {
+      this.godMode = true;
+    }
+
+    // 10. Player level & cores
+    if (params.has('level')) {
+      this.stats.level = Math.max(1, parseInt(params.get('level'), 10) || 1);
+    }
+    if (params.has('cores')) {
+      this.meta.darkCores = Math.max(0, parseInt(params.get('cores'), 10) || 0);
+      this.saveMeta();
+    }
+  }
+
+  recalculatePlayerStats() {
+    if (!this.player) return;
+    const p = this.player;
+
+    const metaHp = this.getMetaBonus('hp') || 0;
+    const metaRegen = this.getMetaBonus('regen') || 0;
+    const metaSpeed = this.getMetaBonus('speed') || 0;
+    const metaDashCd = this.getMetaBonus('dash_cd') || 0;
+    const metaDashInv = this.getMetaBonus('dash_inv') || 0;
+    const metaMagnet = this.getMetaBonus('magnet') || 0;
+    const metaGreed = this.getMetaBonus('greed') || 0;
+    const metaRevives = this.getMetaBonus('revive') || 0;
+    const metaCdMod = this.getMetaBonus('cd') || 0;
+
+    const heartBonus = this.stats.passives && this.stats.passives.heart
+      ? this.data.PASSIVES_DATA.heart.effect(this.stats.passives.heart)
+      : { hp: 0, regen: 0 };
+    const magnetPassiveBonus = this.getPassiveBonus('magnet');
+
+    const newMaxHp = 100 + metaHp + (heartBonus.hp || 0);
+    if (p.maxHp !== newMaxHp) {
+      const diff = newMaxHp - p.maxHp;
+      p.maxHp = newMaxHp;
+      p.hp = Math.min(newMaxHp, Math.max(1, p.hp + diff));
+    }
+    p.regen = metaRegen + (heartBonus.regen || 0);
+    p.baseSpeed = 3.8 * (1 + metaSpeed);
+    p.dashCooldown = 3000 * (1 - metaDashCd);
+    p.dashDuration = 250 + metaDashInv;
+    p.magnetRadius = 85 * (1 + metaMagnet) * (1 + magnetPassiveBonus);
+    p.metaCooldownMod = metaCdMod;
+    p.greedBonus = metaGreed;
+    p.revivesRemaining = metaRevives;
+
+    this.updateHUD();
+  }
+
+  setWeaponLevel(wId, level, updateUI = true) {
+    level = Math.max(0, parseInt(level, 10) || 0);
+
+    // Evolved weapon check
+    if (this.data.EVOLVED_WEAPONS_DATA[wId]) {
+      const baseEntry = Object.entries(this.data.WEAPONS_DATA).find(([id, def]) => def.evolution === wId);
+      if (baseEntry) {
+        delete this.stats.weapons[baseEntry[0]];
+      }
+      if (level > 0) {
+        this.stats.weapons[wId] = 1;
+      } else {
+        delete this.stats.weapons[wId];
+      }
+    } else if (this.data.WEAPONS_DATA[wId]) {
+      const def = this.data.WEAPONS_DATA[wId];
+      if (def.evolution) {
+        delete this.stats.weapons[def.evolution];
+      }
+      if (level > 0) {
+        const maxLvl = def.maxLevel || 5;
+        this.stats.weapons[wId] = Math.min(maxLvl, level);
+      } else {
+        delete this.stats.weapons[wId];
+      }
+    }
+
+    if (!this.weaponTimers[wId]) {
+      this.weaponTimers[wId] = 0;
+    }
+
+    this.updateHUD();
+    if (updateUI && this.updateDebugUI) this.updateDebugUI();
+  }
+
+  toggleWeaponEvolution(baseId) {
+    const def = this.data.WEAPONS_DATA[baseId];
+    if (!def || !def.evolution) return;
+    const evoId = def.evolution;
+
+    if (this.stats.weapons[evoId]) {
+      // Revert to base weapon Lv.5
+      delete this.stats.weapons[evoId];
+      this.stats.weapons[baseId] = 5;
+    } else {
+      // Evolve to ultimate weapon
+      delete this.stats.weapons[baseId];
+      this.stats.weapons[evoId] = 1;
+    }
+
+    this.updateHUD();
+    if (this.updateDebugUI) this.updateDebugUI();
+  }
+
+  setPassiveLevel(pId, level, updateUI = true) {
+    level = Math.max(0, parseInt(level, 10) || 0);
+    if (level > 0) {
+      this.stats.passives[pId] = level;
+    } else {
+      delete this.stats.passives[pId];
+    }
+    this.recalculatePlayerStats();
+    if (updateUI && this.updateDebugUI) this.updateDebugUI();
+  }
+
+  setMetaLevel(mId, level, updateUI = true) {
+    const def = this.data.META_UPGRADES.find(u => u.id === mId);
+    if (!def) return;
+    level = Math.max(0, Math.min(def.maxLevel || 99, parseInt(level, 10) || 0));
+    if (!this.meta.upgrades) this.meta.upgrades = {};
+    this.meta.upgrades[mId] = level;
+    this.saveMeta();
+    this.recalculatePlayerStats();
+    if (updateUI && this.updateDebugUI) this.updateDebugUI();
+  }
+
+  toggleGodMode() {
+    this.godMode = !this.godMode;
+    const godBtn = document.getElementById('dbg-god-toggle-btn');
+    if (godBtn) {
+      godBtn.textContent = this.godMode ? 'ON' : 'OFF';
+      godBtn.className = `btn btn-sm ${this.godMode ? 'btn-gold' : ''}`;
+    }
+    this.showToast(this.godMode ? '🛡️ 無敵モード: ON' : '🛡️ 無敵モード: OFF', 'info');
+  }
+
+  setPlayerLevel(lvl) {
+    this.stats.level = Math.max(1, lvl);
+    this.updateHUD();
+    this.showToast(`⚡ プレイヤーLv: ${this.stats.level}`, 'info');
+  }
+
+  spawnDebugChest() {
+    if (!this.player) return;
+    this.pickups.push({
+      type: 'chest',
+      x: this.player.x + 35,
+      y: this.player.y + 35,
+      radius: 20
+    });
+    this.showToast('🎁 プレイヤーの足元に宝箱が出現！', 'relic');
+  }
+
+  toggleDebugModal() {
+    const modal = document.getElementById('debug-modal');
+    if (!modal) return;
+    const isActive = modal.classList.contains('active');
+    if (isActive) {
+      modal.classList.remove('active');
+      const pauseModal = document.getElementById('pause-modal');
+      const isPauseActive = pauseModal && pauseModal.classList.contains('active');
+      if (!isPauseActive) {
+        this.isPaused = false;
+      }
+    } else {
+      modal.classList.add('active');
+      this.isPaused = true;
+      this.updateDebugUI();
+    }
+  }
+
+  initDebugUI() {
+    const debugBtn = document.getElementById('debug-toggle-btn');
+    if (debugBtn) {
+      debugBtn.addEventListener('click', () => this.toggleDebugModal());
+    }
+
+    const modal = document.getElementById('debug-modal');
+    const closeBtn = document.getElementById('debug-modal-close');
+    const bottomCloseBtn = document.getElementById('debug-close-btn');
+    if (closeBtn) closeBtn.addEventListener('click', () => this.toggleDebugModal());
+    if (bottomCloseBtn) bottomCloseBtn.addEventListener('click', () => this.toggleDebugModal());
+
+    // Tab switching
+    document.querySelectorAll('.debug-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.debug-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.debug-tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const targetTab = btn.getAttribute('data-tab');
+        const pane = document.getElementById(`debug-tab-${targetTab}`);
+        if (pane) pane.classList.add('active');
+      });
+    });
+
+    // Populate Lists
+    this.renderDebugWeapons();
+    this.renderDebugPassives();
+    this.renderDebugMeta();
+
+    // Quick bar weapons
+    const wepEvoAll = document.getElementById('dbg-weapons-evolve-all');
+    if (wepEvoAll) {
+      wepEvoAll.addEventListener('click', () => {
+        ['gatling', 'void_ripper', 'thunderstorm', 'inferno', 'reaper_storm'].forEach(id => this.setWeaponLevel(id, 1, false));
+        this.updateDebugUI();
+        this.showToast('🌟 全武器を究極進化に設定！', 'relic');
+      });
+    }
+
+    const wepMaxAll = document.getElementById('dbg-weapons-max-all');
+    if (wepMaxAll) {
+      wepMaxAll.addEventListener('click', () => {
+        ['wand', 'blades', 'lightning', 'molotov', 'scythe'].forEach(id => this.setWeaponLevel(id, 5, false));
+        this.updateDebugUI();
+        this.showToast('⚡ 全基本武器をLv.5に設定！', 'info');
+      });
+    }
+
+    const wepClrAll = document.getElementById('dbg-weapons-clear-all');
+    if (wepClrAll) {
+      wepClrAll.addEventListener('click', () => {
+        this.stats.weapons = {};
+        this.updateHUD();
+        this.updateDebugUI();
+        this.showToast('❌ 全武器を解除しました', 'warning');
+      });
+    }
+
+    // Quick bar passives
+    const pasMaxAll = document.getElementById('dbg-passives-max-all');
+    if (pasMaxAll) {
+      pasMaxAll.addEventListener('click', () => {
+        Object.keys(this.data.PASSIVES_DATA).forEach(id => this.setPassiveLevel(id, 5, false));
+        this.updateDebugUI();
+        this.showToast('⚡ 全パッシブスキルをLv.5に設定！', 'info');
+      });
+    }
+
+    const pasClrAll = document.getElementById('dbg-passives-clear-all');
+    if (pasClrAll) {
+      pasClrAll.addEventListener('click', () => {
+        this.stats.passives = {};
+        this.recalculatePlayerStats();
+        this.updateDebugUI();
+        this.showToast('❌ 全パッシブを解除しました', 'warning');
+      });
+    }
+
+    // Quick bar meta
+    const metaMaxAll = document.getElementById('dbg-meta-max-all');
+    if (metaMaxAll) {
+      metaMaxAll.addEventListener('click', () => {
+        this.data.META_UPGRADES.forEach(u => this.setMetaLevel(u.id, u.maxLevel, false));
+        this.updateDebugUI();
+        this.showToast('👑 メタ永続強化を全MAXに設定！', 'relic');
+      });
+    }
+
+    const metaAddCores = document.getElementById('dbg-meta-add-cores');
+    if (metaAddCores) {
+      metaAddCores.addEventListener('click', () => {
+        this.meta.darkCores += 10000;
+        this.saveMeta();
+        this.updateHUD();
+        this.showToast('💎 +10,000 魔核を獲得！', 'relic');
+      });
+    }
+
+    const metaResetAll = document.getElementById('dbg-meta-reset-all');
+    if (metaResetAll) {
+      metaResetAll.addEventListener('click', () => {
+        this.data.META_UPGRADES.forEach(u => this.setMetaLevel(u.id, 0, false));
+        this.updateDebugUI();
+        this.showToast('🔄 メタ強化を初期化しました', 'warning');
+      });
+    }
+
+    // Tools
+    const godBtn = document.getElementById('dbg-god-toggle-btn');
+    if (godBtn) {
+      godBtn.textContent = this.godMode ? 'ON' : 'OFF';
+      godBtn.className = `btn btn-sm ${this.godMode ? 'btn-gold' : ''}`;
+      godBtn.addEventListener('click', () => this.toggleGodMode());
+    }
+
+    const healBtn = document.getElementById('dbg-heal-btn');
+    if (healBtn) {
+      healBtn.addEventListener('click', () => {
+        if (this.player) {
+          this.player.hp = this.player.maxHp;
+          this.updateHUD();
+          this.showToast('💖 HPを全回復しました！', 'info');
+        }
+      });
+    }
+
+    const lvlDown = document.getElementById('dbg-lvl-down');
+    if (lvlDown) lvlDown.addEventListener('click', () => this.setPlayerLevel(this.stats.level - 1));
+    const lvlUp = document.getElementById('dbg-lvl-up');
+    if (lvlUp) lvlUp.addEventListener('click', () => this.setPlayerLevel(this.stats.level + 1));
+    const lvlUp10 = document.getElementById('dbg-lvl-up10');
+    if (lvlUp10) lvlUp10.addEventListener('click', () => this.setPlayerLevel(this.stats.level + 10));
+
+    const triggerLvlUp = document.getElementById('dbg-trigger-lvlup');
+    if (triggerLvlUp) {
+      triggerLvlUp.addEventListener('click', () => {
+        modal.classList.remove('active');
+        this.showLevelUpModal();
+      });
+    }
+
+    const spawnChest = document.getElementById('dbg-spawn-chest');
+    if (spawnChest) spawnChest.addEventListener('click', () => this.spawnDebugChest());
+
+    const nukeBtn = document.getElementById('dbg-nuke-btn');
+    if (nukeBtn) {
+      nukeBtn.addEventListener('click', () => {
+        this.detonateAllScreenEnemies();
+        this.showToast('💣 画面内の敵を殲滅！', 'warning');
+      });
+    }
+
+    const spawnBoss = document.getElementById('dbg-spawn-boss');
+    if (spawnBoss) {
+      spawnBoss.addEventListener('click', () => {
+        this.spawnBoss();
+      });
+    }
+
+    const resetDash = document.getElementById('dbg-reset-dash');
+    if (resetDash) {
+      resetDash.addEventListener('click', () => {
+        if (this.player) {
+          this.player.dashTimer = 0;
+          const dashFill = document.getElementById('dash-bar-fill');
+          if (dashFill) dashFill.style.width = '100%';
+          this.showToast('💨 ダッシュ再使用可能！', 'info');
+        }
+      });
+    }
+  }
+
+  renderDebugWeapons() {
+    const container = document.getElementById('debug-weapons-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    Object.values(this.data.WEAPONS_DATA).forEach(w => {
+      const evoDef = this.data.EVOLVED_WEAPONS_DATA[w.evolution];
+      const card = document.createElement('div');
+      card.className = 'debug-item-card';
+      card.id = `dbg-wep-card-${w.id}`;
+
+      card.innerHTML = `
+        <div class="debug-item-left">
+          <span class="debug-item-icon">${w.icon}</span>
+          <div class="debug-item-info">
+            <span class="debug-item-name">${w.name}</span>
+            <span class="debug-item-desc">${w.desc}</span>
+          </div>
+        </div>
+        <div class="debug-item-right">
+          <span id="dbg-wep-pill-${w.id}" class="debug-lvl-pill">Lv.0</span>
+          <div class="debug-stepper">
+            <button class="debug-step-btn" data-action="dec">-</button>
+            <button class="debug-step-btn" data-lvl="0">0</button>
+            <button class="debug-step-btn" data-lvl="1">1</button>
+            <button class="debug-step-btn" data-lvl="3">3</button>
+            <button class="debug-step-btn" data-lvl="5">5</button>
+            <button class="debug-step-btn" data-action="inc">+</button>
+          </div>
+          ${w.evolution ? `<button id="dbg-wep-evo-${w.id}" class="debug-evo-btn" title="究極進化: ${evoDef ? evoDef.name : ''}">★ 進化</button>` : ''}
+        </div>
+      `;
+
+      // Stepper click handlers
+      card.querySelectorAll('.debug-step-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const isEvolved = !!this.stats.weapons[w.evolution];
+          const cur = isEvolved ? 5 : (this.stats.weapons[w.id] || 0);
+          if (btn.dataset.lvl !== undefined) {
+            this.setWeaponLevel(w.id, parseInt(btn.dataset.lvl, 10));
+          } else if (btn.dataset.action === 'dec') {
+            this.setWeaponLevel(w.id, Math.max(0, cur - 1));
+          } else if (btn.dataset.action === 'inc') {
+            this.setWeaponLevel(w.id, Math.min(w.maxLevel, cur + 1));
+          }
+        });
+      });
+
+      // Evolution toggle button
+      const evoBtn = card.querySelector(`#dbg-wep-evo-${w.id}`);
+      if (evoBtn) {
+        evoBtn.addEventListener('click', () => this.toggleWeaponEvolution(w.id));
+      }
+
+      container.appendChild(card);
+    });
+  }
+
+  renderDebugPassives() {
+    const container = document.getElementById('debug-passives-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    Object.values(this.data.PASSIVES_DATA).forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'debug-item-card';
+      card.id = `dbg-pas-card-${p.id}`;
+
+      card.innerHTML = `
+        <div class="debug-item-left">
+          <span class="debug-item-icon">${p.icon}</span>
+          <div class="debug-item-info">
+            <span class="debug-item-name">${p.name}</span>
+            <span class="debug-item-desc">${p.desc}</span>
+          </div>
+        </div>
+        <div class="debug-item-right">
+          <span id="dbg-pas-pill-${p.id}" class="debug-lvl-pill">Lv.0</span>
+          <div class="debug-stepper">
+            <button class="debug-step-btn" data-action="dec">-</button>
+            <button class="debug-step-btn" data-lvl="0">0</button>
+            <button class="debug-step-btn" data-lvl="1">1</button>
+            <button class="debug-step-btn" data-lvl="3">3</button>
+            <button class="debug-step-btn" data-lvl="5">5</button>
+            <button class="debug-step-btn" data-action="inc">+</button>
+          </div>
+        </div>
+      `;
+
+      card.querySelectorAll('.debug-step-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cur = this.stats.passives[p.id] || 0;
+          if (btn.dataset.lvl !== undefined) {
+            this.setPassiveLevel(p.id, parseInt(btn.dataset.lvl, 10));
+          } else if (btn.dataset.action === 'dec') {
+            this.setPassiveLevel(p.id, Math.max(0, cur - 1));
+          } else if (btn.dataset.action === 'inc') {
+            this.setPassiveLevel(p.id, cur + 1);
+          }
+        });
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  renderDebugMeta() {
+    const container = document.getElementById('debug-meta-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    this.data.META_UPGRADES.forEach(u => {
+      const card = document.createElement('div');
+      card.className = 'debug-item-card';
+      card.id = `dbg-meta-card-${u.id}`;
+
+      card.innerHTML = `
+        <div class="debug-item-left">
+          <span class="debug-item-icon">${u.icon}</span>
+          <div class="debug-item-info">
+            <span class="debug-item-name">${u.name} (Max:${u.maxLevel})</span>
+            <span class="debug-item-desc">${u.desc}</span>
+          </div>
+        </div>
+        <div class="debug-item-right">
+          <span id="dbg-meta-pill-${u.id}" class="debug-lvl-pill">Lv.0</span>
+          <div class="debug-stepper">
+            <button class="debug-step-btn" data-action="dec">-</button>
+            <button class="debug-step-btn" data-lvl="0">0</button>
+            <button class="debug-step-btn" data-lvl="max">MAX</button>
+            <button class="debug-step-btn" data-action="inc">+</button>
+          </div>
+        </div>
+      `;
+
+      card.querySelectorAll('.debug-step-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cur = (this.meta.upgrades && this.meta.upgrades[u.id]) || 0;
+          if (btn.dataset.lvl === '0') {
+            this.setMetaLevel(u.id, 0);
+          } else if (btn.dataset.lvl === 'max') {
+            this.setMetaLevel(u.id, u.maxLevel);
+          } else if (btn.dataset.action === 'dec') {
+            this.setMetaLevel(u.id, Math.max(0, cur - 1));
+          } else if (btn.dataset.action === 'inc') {
+            this.setMetaLevel(u.id, Math.min(u.maxLevel, cur + 1));
+          }
+        });
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  updateDebugUI() {
+    // 1. Update weapons
+    Object.values(this.data.WEAPONS_DATA).forEach(w => {
+      const pill = document.getElementById(`dbg-wep-pill-${w.id}`);
+      const evoBtn = document.getElementById(`dbg-wep-evo-${w.id}`);
+      const isEvolved = !!this.stats.weapons[w.evolution];
+      const curLvl = isEvolved ? 5 : (this.stats.weapons[w.id] || 0);
+
+      if (pill) {
+        if (isEvolved) {
+          pill.textContent = '★進化';
+          pill.className = 'debug-lvl-pill evolved';
+        } else if (curLvl > 0) {
+          pill.textContent = `Lv.${curLvl}`;
+          pill.className = 'debug-lvl-pill active';
+        } else {
+          pill.textContent = 'Lv.0';
+          pill.className = 'debug-lvl-pill';
+        }
+      }
+
+      if (evoBtn) {
+        evoBtn.classList.toggle('active', isEvolved);
+      }
+    });
+
+    // 2. Update passives
+    Object.values(this.data.PASSIVES_DATA).forEach(p => {
+      const pill = document.getElementById(`dbg-pas-pill-${p.id}`);
+      const curLvl = this.stats.passives[p.id] || 0;
+      if (pill) {
+        if (curLvl > 0) {
+          pill.textContent = `Lv.${curLvl}`;
+          pill.className = 'debug-lvl-pill active';
+        } else {
+          pill.textContent = 'Lv.0';
+          pill.className = 'debug-lvl-pill';
+        }
+      }
+    });
+
+    // 3. Update meta upgrades
+    this.data.META_UPGRADES.forEach(u => {
+      const pill = document.getElementById(`dbg-meta-pill-${u.id}`);
+      const curLvl = (this.meta.upgrades && this.meta.upgrades[u.id]) || 0;
+      if (pill) {
+        if (curLvl >= u.maxLevel) {
+          pill.textContent = `MAX(${curLvl})`;
+          pill.className = 'debug-lvl-pill evolved';
+        } else if (curLvl > 0) {
+          pill.textContent = `Lv.${curLvl}`;
+          pill.className = 'debug-lvl-pill active';
+        } else {
+          pill.textContent = 'Lv.0';
+          pill.className = 'debug-lvl-pill';
+        }
+      }
+    });
+
+    // 4. Update god toggle button
+    const godBtn = document.getElementById('dbg-god-toggle-btn');
+    if (godBtn) {
+      godBtn.textContent = this.godMode ? 'ON' : 'OFF';
+      godBtn.className = `btn btn-sm ${this.godMode ? 'btn-gold' : ''}`;
+    }
   }
 }
 
